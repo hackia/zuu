@@ -1,4 +1,4 @@
-use crate::helpers::{ko, ok, run, title};
+use crate::helpers::{ko, ok, run};
 use std::path::Path;
 use std::process::exit;
 use std::time::Instant;
@@ -41,7 +41,6 @@ fn check_rust(started: Instant) {
         clippy,
     );
     let check = Instant::now();
-    title("");
     run(
         "Check",
         "cargo",
