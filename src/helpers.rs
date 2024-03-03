@@ -1,5 +1,4 @@
 use cvt::cvt;
-use gettextrs::gettext;
 use libc::{ioctl, STDOUT_FILENO, TIOCGWINSZ};
 use std::ffi::c_ushort;
 use std::mem;
@@ -58,20 +57,14 @@ pub fn msg(text: &str) {
 
 pub fn ok(text: &str, started: Instant) {
     println!(
-        "    \x1b[1;32m{}\x1b[0m {} {} {}s",
-        gettext("Finished"),
-        text,
-        gettext("verified in").as_str(),
+        "    \x1b[1;32mFinished\x1b[0m {text} take {}s",
         started.elapsed().as_secs()
     );
 }
 
 pub fn ko(text: &str, started: Instant) {
     println!(
-        "    \x1b[1;31m{}\x1b[0m {} {} {}s",
-        gettext("Finished"),
-        text,
-        gettext("take").as_str(),
+        "    \x1b[1;31mFinished\x1b[0m {text} take {}s",
         started.elapsed().as_secs()
     );
 }

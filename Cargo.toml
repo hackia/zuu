@@ -12,5 +12,4 @@ description = "A program to check your code quality before all commit"
 
 [dependencies]
 cvt = "0.1.2"
-gettext-rs = "0.7.0"
 libc = "0.2.153"
