@@ -1,0 +1,16 @@
+[package]
+name = "zuu"
+version = "10.0.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+keywords = ["code", "quality", "production", "certified","git"]
+categories = ["development-tools","development-tools::testing"]
+readme = "README.md"
+authors = ["Willy Micieli"]
+repository = "https://github.com/otechdo/zuu"
+description = "A program to check your code quality before all commit"
+
+[dependencies]
+cvt = "0.1.2"
+gettext-rs = "0.7.0"
+libc = "0.2.153"
