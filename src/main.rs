@@ -64,7 +64,7 @@ fn check_rust(started: Instant) {
 fn main() {
     let s = Instant::now();
     if Path::new("Cargo.toml").exists() {
-        check_rust(Instant::now());
+        check_rust(s);
         exit(0);
     }
     ko("Source code not supported", s);
