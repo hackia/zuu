@@ -7,9 +7,9 @@ pub mod helpers;
 use gettextrs::{bind_textdomain_codeset, gettext, textdomain};
 
 fn check_rust(started: Instant) {
-    title("Project");
     let verify = Instant::now();
     run(
+        "Project",
         "cargo",
         "verify-project --quiet --color=always",
         gettext("Project is valid").as_str(),
@@ -17,8 +17,8 @@ fn check_rust(started: Instant) {
         verify,
     );
     let audit = Instant::now();
-    title("Audit");
     run(
+        "Audit",
         "cargo",
         "audit",
         gettext("Audit no detect errors").as_str(),
@@ -26,11 +26,14 @@ fn check_rust(started: Instant) {
         audit,
     );
     let clippy = Instant::now();
-
-    title("Clippy");
-    run("cargo", "clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates  -D unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -F clippy::cargo",gettext("Your code is correct").as_str(),gettext("Your code is incorrect").as_str(),clippy);
-    title("Tests");
+    run("Clippy",
+        "cargo",
+        "clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates  -D unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -F clippy::cargo",
+        gettext("Your code is correct").as_str(),
+        gettext("Your code is incorrect").as_str(),
+        clippy);
     run(
+        "Tests",
         "cargo",
         "test --no-fail-fast",
         gettext("No test failures").as_str(),
@@ -38,9 +41,9 @@ fn check_rust(started: Instant) {
         clippy,
     );
     let check = Instant::now();
-
-    title("Check");
+    title("");
     run(
+        "Check",
         "cargo",
         "check",
         gettext("Your code is correct").as_str(),
@@ -48,8 +51,8 @@ fn check_rust(started: Instant) {
         check,
     );
     let fmt = Instant::now();
-    title("Format");
     run(
+        "Format",
         "cargo",
         "fmt --check",
         gettext("Your code is formatted correctness").as_str(),

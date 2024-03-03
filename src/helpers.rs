@@ -23,7 +23,8 @@ struct TermSize {
 ///
 /// if the program is not founded or command error
 ///
-pub fn run(program: &str, args: &str, s: &str, e: &str, x: Instant) {
+pub fn run(t: &str, program: &str, args: &str, s: &str, e: &str, x: Instant) {
+    title(t);
     assert!(
         Command::new(program)
             .args(args.split_whitespace())
