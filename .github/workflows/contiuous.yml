@@ -1,0 +1,17 @@
+name: continuous
+on:
+  push:
+    branches: [ "master" , "develop" , "main" ]
+  pull_request:
+    branches: [ "master" , "develop", "main" ]
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  continuous:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: deps 
+      run: sudo apt-get install -y curl fd-find git docker-ce docker-ce-cli containerd.io docker-buildx-plugin packer && packer plugins install github.com/hashicorp/docker
+    - name: continuous
+      run: git clone https://github.com/taishingi/continuous-template.git continuous && cd continuous/rust && ./scripts-gen "github.com" "otechdo" "zuu" "${GITHUB_REF##*/}" "4" && packer validate . && packer build .
