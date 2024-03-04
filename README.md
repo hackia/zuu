@@ -1,7 +1,7 @@
 - [@zuu](https://github.com/otechdo/zuu)
   - [@way](https://github.com/otechdo/zuu/wiki/way)
   - [@crates](https://crates.io/crates/zuu)
-  - [@wiki](https://github.com/otechdo/zuu/wiki/installation)
+  - [@wiki](https://github.com/otechdo/zuu/wiki)
   - [@installation](https://github.com/otechdo/zuu/wiki/installation)
   - [@bugs](https://github.com/otechdo/zuu/issues)
   - [@roadmap](https://github.com/orgs/otechdo/projects/4/views/1)
