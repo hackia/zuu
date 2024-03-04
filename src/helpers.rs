@@ -1,7 +1,7 @@
 use std::process::Command;
 use std::time::Instant;
-pub fn title(text: &str) {
-    println!("\n\x1b[1;37m{text}\x1b[0m\n");
+pub fn title(eta: &str, task: &str) {
+    println!("\n\x1b[1;32m     {eta}\x1b[0m {task}");
 }
 
 ///
@@ -9,8 +9,8 @@ pub fn title(text: &str) {
 ///
 /// if the program is not founded or command error
 ///
-pub fn run(t: &str, program: &str, args: &str, s: &str, e: &str, x: Instant) {
-    title(t);
+pub fn run(eta: &str, task: &str, program: &str, args: &str, s: &str, e: &str, x: Instant) {
+    title(eta, task);
     assert!(
         Command::new(program)
             .args(args.split_whitespace())
