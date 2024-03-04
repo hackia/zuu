@@ -16,4 +16,4 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: deps
-      run: git clone https://github.com/otechdo/zuu && cd zuu && cargo ru
+      run: git clone https://github.com/otechdo/zuu && cd zuu && cargo run
