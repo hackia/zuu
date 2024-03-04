@@ -11,5 +11,3 @@ repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
 
 [dependencies]
-cvt = "0.1.2"
-libc = "0.2.153"
