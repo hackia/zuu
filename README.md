@@ -8,5 +8,5 @@
 cargo install cargo-audit zuu@10.0.0
 ```
 
-[Wiki](https://github.com/otechdo/zuu.wiki.git)
+[@wiki](https://github.com/otechdo/zuu/wiki)
 
