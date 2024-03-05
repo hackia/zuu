@@ -4,7 +4,7 @@ use std::process::exit;
 use std::time::Instant;
 pub mod helpers;
 
-fn check_rust(started: Instant)->i32 {
+fn check_rust(started: Instant) -> i32 {
     run(
         "Started",
         "Audit",
@@ -54,8 +54,7 @@ fn check_rust(started: Instant)->i32 {
     0
 }
 
-fn check_go(started: Instant)-> i32
-{
+fn check_go(started: Instant) -> i32 {
     run(
         "Started",
         "Verify",

@@ -1,4 +1,4 @@
-use std::process::{Command, exit};
+use std::process::{exit, Command};
 use std::time::Instant;
 pub fn title(eta: &str, task: &str) {
     println!("\n\x1b[1;32m     {eta}\x1b[0m {task}");
