@@ -5,7 +5,7 @@ use std::time::Instant;
 
 pub mod helpers;
 
-fn check_rust(started: Instant) {
+fn check_rust(started: Instant)->i32 {
     let audit = Instant::now();
     run(
         "Started",
@@ -56,14 +56,59 @@ fn check_rust(started: Instant) {
     );
     ok("Your code can be committed", started);
     println!();
+    0
+}
+
+fn check_go(started: Instant)-> i32
+{
+    run(
+        "Started",
+        "Verify",
+        "go",
+        "mod verify",
+        "Your code can it's verified successfully",
+        "Your project is not valid",
+        Instant::now(),
+    );
+    run(
+        "Started",
+        "Build",
+        "go",
+        "build",
+        "Your code can be built",
+        "Your project cannot be built",
+        Instant::now(),
+    );
+    run(
+        "Started",
+        "Test",
+        "go",
+        "test -v",
+        "No test failures",
+        "Test have failures",
+        Instant::now(),
+    );
+    run(
+        "Started",
+        "Test",
+        "go",
+        "vet",
+        "No test failures",
+        "Test have failures",
+        Instant::now(),
+    );
+    ok("Your code can be committed", started);
+    println!();
+    0
 }
 
 fn main() {
-    let s = Instant::now();
     if Path::new("Cargo.toml").exists() {
-        check_rust(s);
-        exit(0);
+        exit(check_rust(Instant::now()));
     }
-    ko("Source code not supported", s);
+    if Path::new("go.mod").exists() {
+        exit(check_go(Instant::now()));
+    }
+    ko("Source code not supported", Instant::now());
     exit(1);
 }
