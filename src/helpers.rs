@@ -1,4 +1,4 @@
-use std::process::Command;
+use std::process::{Command, exit};
 use std::time::Instant;
 pub fn title(eta: &str, task: &str) {
     println!("\n\x1b[1;32m     {eta}\x1b[0m {task}");
@@ -11,19 +11,20 @@ pub fn title(eta: &str, task: &str) {
 ///
 pub fn run(eta: &str, task: &str, program: &str, args: &str, s: &str, e: &str, x: Instant) {
     title(eta, task);
-    assert!(
-        Command::new(program)
-            .args(args.split_whitespace())
-            .current_dir(".")
-            .spawn()
-            .expect("")
-            .wait()
-            .unwrap()
-            .success(),
-        "{}",
-        e
-    );
-    ok(s, x);
+    if Command::new(program)
+        .args(args.split_whitespace())
+        .current_dir(".")
+        .spawn()
+        .expect("")
+        .wait()
+        .unwrap()
+        .success()
+    {
+        ok(s, x);
+    } else {
+        ko(e, x);
+        exit(1);
+    }
 }
 
 pub fn msg(text: &str) {
