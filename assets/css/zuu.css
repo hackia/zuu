@@ -2,7 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+
 body{
-    background-image: url("/zuu.png");
-    background-size: cover;
+
+}
+.content{
+    position: fixed;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    color: #f1f1f1;
+    width: 100%;
+    padding: 20px;
+}
+
+
+#background {
+    padding: 0;
+    margin: 0;
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    min-width: 100%;
+    min-height: 100%;
 }
