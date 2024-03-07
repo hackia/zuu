@@ -164,6 +164,31 @@ fn status() {
             .success());
         println!();
     }
+    if Path::new(".hg").exists() {
+        println!("\x1b[1;32m    Previous\x1b[0m\n");
+        assert!(Command::new("hg")
+            .arg("log")
+            .arg("-l")
+            .arg("1")
+            .arg("--stat")
+            .current_dir(".")
+            .spawn()
+            .unwrap()
+            .wait()
+            .unwrap()
+            .success());
+        println!("\n\x1b[1;32m     Current\x1b[0m\n");
+        assert!(Command::new("hg")
+            .arg("diff")
+            .arg("--stat")
+            .current_dir(".")
+            .spawn()
+            .unwrap()
+            .wait()
+            .unwrap()
+            .success());
+        println!();
+    }
 }
 fn spin(b: &str, data: &str) {
     let i = ["|", "/", "-", "\\", "|"];
