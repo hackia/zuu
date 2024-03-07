@@ -183,10 +183,9 @@ fn main() {
         print!("{}", ansi_escapes::CursorHide);
         ok("Enter in watch mode", s);
         loop {
-            let x = check(&detect(), s);
+            let code = check(&detect(), s);
             status();
-
-            if x.eq(&0) {
+            if code.eq(&0) {
                 for _t in 1..61 {
                     spin("Success", "Your code can be committed");
                 }
@@ -197,5 +196,7 @@ fn main() {
             }
         }
     }
-    exit(check(&detect(), s));
+    let code = check(&detect(), s);
+    status();
+    exit(code);
 }
