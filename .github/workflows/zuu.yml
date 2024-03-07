@@ -12,10 +12,19 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, windows-latest, macos-latest ]
+    if: matrix.os == '' 
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
     - name: deps
       run: cargo install cargo-audit zuu 
     - name: zuu
-      run: git clone https://github.com/otechdo/zuu . && cd zuu &&  git checkout "${GITHUB_REF##*/}"  && zuu
+      run: git clone https://github.com/otechdo/zuu .\zuu && cd .\zuu &&  git checkout "${GITHUB_REF##*/}"  && zuu
+    if: matrix.os !== 'windows-latest'
+    runs-on: ${{ matrix.os }}
+        steps:
+        - uses: actions/checkout@v3
+        - name: deps
+          run: cargo install cargo-audit zuu 
+        - name: zuu
+          run: git clone https://github.com/otechdo/zuu .\zuu && cd zuu &&  git checkout "${GITHUB_REF##*/}"  && zuu
