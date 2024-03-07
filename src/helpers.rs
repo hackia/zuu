@@ -39,6 +39,13 @@ pub fn ok(text: &str, started: Instant) {
         started.elapsed().as_secs()
     );
 }
+pub fn okay(text: &str) {
+    println!("    \x1b[1;32mFinished\x1b[0m {text}",);
+}
+
+pub fn failure(text: &str) {
+    println!("    \x1b[1;31mFinished\x1b[0m {text}",);
+}
 
 pub fn ko(text: &str, started: Instant) {
     println!(

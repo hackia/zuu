@@ -1,11 +1,12 @@
-use crate::helpers::{ko, ok, run};
+use crate::helpers::{ko, ok, okay, run};
 use std::env::args;
+use std::fs;
 use std::io::Write;
 use std::path::Path;
+use std::path::MAIN_SEPARATOR;
 use std::process::{exit, Command};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-
 pub mod helpers;
 
 enum Language {
@@ -142,7 +143,7 @@ fn detect() -> Language {
 fn status() {
     if Path::new(".git").exists() {
         println!("\x1b[1;32m    Previous\x1b[0m\n");
-        assert!(Command::new("git")
+        let _ = Command::new("git")
             .arg("log")
             .arg("-1")
             .arg("--stat")
@@ -151,9 +152,9 @@ fn status() {
             .unwrap()
             .wait()
             .unwrap()
-            .success());
+            .success();
         println!("\n\x1b[1;32m     Current\x1b[0m\n");
-        assert!(Command::new("git")
+        let _ = Command::new("git")
             .arg("diff")
             .arg("--stat")
             .current_dir(".")
@@ -161,12 +162,12 @@ fn status() {
             .unwrap()
             .wait()
             .unwrap()
-            .success());
+            .success();
         println!();
     }
     if Path::new(".hg").exists() {
         println!("\x1b[1;32m    Previous\x1b[0m\n");
-        assert!(Command::new("hg")
+        let _ = Command::new("hg")
             .arg("log")
             .arg("-l")
             .arg("1")
@@ -176,9 +177,9 @@ fn status() {
             .unwrap()
             .wait()
             .unwrap()
-            .success());
+            .success();
         println!("\n\x1b[1;32m     Current\x1b[0m\n");
-        assert!(Command::new("hg")
+        let _ = Command::new("hg")
             .arg("diff")
             .arg("--stat")
             .current_dir(".")
@@ -186,30 +187,7 @@ fn status() {
             .unwrap()
             .wait()
             .unwrap()
-            .success());
-        println!();
-    }
-    if Path::new("").exists() {
-        println!("\x1b[1;32m    Previous\x1b[0m\n");
-        assert!(Command::new("svn")
-            .arg("log")
-            .arg("-l")
-            .arg("1")
-            .current_dir(".")
-            .spawn()
-            .unwrap()
-            .wait()
-            .unwrap()
-            .success());
-        println!("\n\x1b[1;32m     Current\x1b[0m\n");
-        assert!(Command::new("svn")
-            .arg("diff")
-            .current_dir(".")
-            .spawn()
-            .unwrap()
-            .wait()
-            .unwrap()
-            .success());
+            .success();
         println!();
     }
 }
@@ -224,25 +202,57 @@ fn spin(b: &str, data: &str) {
     print!("\r\x1b[1;37m *\x1b[1;32m   {b} \x1b[1;37m{data}\x1b[0m");
     std::io::stdout().flush().expect("a");
 }
+
+fn init() {
+    let git_hook_content = "#!/bin/sh\nzuu\n exit $?";
+    let hg_hook_content = "[hooks]\nprecommit = zuu";
+    if Path::new(".git").exists() {
+        let mut f = fs::File::create(
+            format!(".git{MAIN_SEPARATOR}hooks{MAIN_SEPARATOR}pre-commit").as_str(),
+        )
+        .expect("failed to create the hook file");
+        f.write_all(git_hook_content.as_bytes())
+            .expect("failed to write content");
+        f.sync_all().expect("failed to sync data");
+    }
+    if Path::new(".hg").exists() {
+        let mut f = fs::File::create(format!(".hg{MAIN_SEPARATOR}hgrc").as_str())
+            .expect("failed to create the hook file");
+        f.write_all(hg_hook_content.as_bytes())
+            .expect("failed to write content");
+        f.sync_all().expect("failed to sync data");
+    }
+}
+
+fn watch(s: Instant) {
+    print!("{}", ansi_escapes::CursorHide);
+    ok("Enter in watch mode", s);
+    loop {
+        let code = check(&detect(), s);
+        status();
+        okay("Press Ctrl+c to quit");
+        if code.eq(&0) {
+            for _t in 1..61 {
+                spin("Success", "Your code can be committed");
+            }
+        } else {
+            for _t in 1..61 {
+                spin("Failure", "Your code contains failures");
+            }
+        }
+    }
+}
+
 fn main() {
     let s = Instant::now();
     let args: Vec<String> = args().collect();
+    if args.len().eq(&2) && args.get(1).unwrap().eq("init") {
+        init();
+        okay("Your project it's now tracked by zuu");
+        exit(0);
+    }
     if args.len().eq(&2) && args.get(1).unwrap().eq("--watch") {
-        print!("{}", ansi_escapes::CursorHide);
-        ok("Enter in watch mode", s);
-        loop {
-            let code = check(&detect(), s);
-            status();
-            if code.eq(&0) {
-                for _t in 1..61 {
-                    spin("Success", "Your code can be committed");
-                }
-            } else {
-                for _t in 1..61 {
-                    spin("Failure", "Your code contains failures");
-                }
-            }
-        }
+        watch(s);
     }
     let code = check(&detect(), s);
     status();
