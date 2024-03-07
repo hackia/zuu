@@ -15,5 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
-    - name: checkup
-      run: git clone https://github.com/otechdo/zuu && cd zuu && cargo run
+    - name: deps
+      run: cargo install cargo-audit zuu 
+    - name: zuu
+      run: git clone https://github.com/otechdo/zuu app && cd app &&  git checkout "${GITHUB_REF##*/}"  && zuu &&  exit 0 || exit 1
