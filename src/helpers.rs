@@ -1,4 +1,4 @@
-use std::process::{exit, Command};
+use std::process::Command;
 use std::time::Instant;
 pub fn title(eta: &str, task: &str) {
     println!("\n\x1b[1;32m     {eta}\x1b[0m {task}");
@@ -9,7 +9,8 @@ pub fn title(eta: &str, task: &str) {
 ///
 /// if the program is not founded or command error
 ///
-pub fn run(eta: &str, task: &str, program: &str, args: &str, s: &str, e: &str, x: Instant) {
+#[must_use]
+pub fn run(eta: &str, task: &str, program: &str, args: &str, s: &str, e: &str, x: Instant) -> i32 {
     title(eta, task);
     if Command::new(program)
         .args(args.split_whitespace())
@@ -21,9 +22,10 @@ pub fn run(eta: &str, task: &str, program: &str, args: &str, s: &str, e: &str, x
         .success()
     {
         ok(s, x);
+        0
     } else {
         ko(e, x);
-        exit(1);
+        1
     }
 }
 

@@ -11,3 +11,4 @@ repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
 
 [dependencies]
+ansi-escapes = "=0.1.1"
