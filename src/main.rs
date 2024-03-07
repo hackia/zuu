@@ -2,7 +2,7 @@ use crate::helpers::{ko, ok, run};
 use std::env::args;
 use std::io::Write;
 use std::path::Path;
-use std::process::{Command, exit};
+use std::process::{exit, Command};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
@@ -139,6 +139,32 @@ fn detect() -> Language {
     }
 }
 
+fn status() {
+    if Path::new(".git").exists() {
+        println!("\x1b[1;32m    Previous\x1b[0m\n");
+        assert!(Command::new("git")
+            .arg("log")
+            .arg("-1")
+            .arg("--stat")
+            .current_dir(".")
+            .spawn()
+            .unwrap()
+            .wait()
+            .unwrap()
+            .success());
+        println!("\n\x1b[1;32m     Current\x1b[0m\n");
+        assert!(Command::new("git")
+            .arg("diff")
+            .arg("--stat")
+            .current_dir(".")
+            .spawn()
+            .unwrap()
+            .wait()
+            .unwrap()
+            .success());
+        println!();
+    }
+}
 fn spin(b: &str, data: &str) {
     let i = ["|", "/", "-", "\\", "|"];
     for &x in &i {
@@ -157,10 +183,10 @@ fn main() {
         print!("{}", ansi_escapes::CursorHide);
         ok("Enter in watch mode", s);
         loop {
-            if check(&detect(), s).eq(&0) {
-                if Path::new(".git").exists() {
-                    Command::new("git").arg("")
-                }
+            let x = check(&detect(), s);
+            status();
+
+            if x.eq(&0) {
                 for _t in 1..61 {
                     spin("Success", "Your code can be committed");
                 }
