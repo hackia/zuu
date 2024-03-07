@@ -27,4 +27,4 @@ jobs:
         - name: deps
           run: cargo install cargo-audit zuu 
         - name: zuu
-          run: git clone https://github.com/otechdo/zuu .\zuu && cd zuu &&  git checkout "${GITHUB_REF##*/}"  && zuu
+          run: git clone https://github.com/otechdo/zuu zuu && cd zuu &&  git checkout "${GITHUB_REF##*/}"  && zuu
