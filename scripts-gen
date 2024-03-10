@@ -1,0 +1,24 @@
+#!/bin/bash
+function gen()
+{
+    for i in "stable" "beta" "nightly"
+    do
+        echo "generating ${i} script..."
+        {
+            echo -e "#!/bin/bash\n"
+            echo "DOMAIN=$1"
+            echo "USERNAME=$2"
+            echo "REPOSITORY=$3"
+            echo "URI=\"https://\${DOMAIN}/\${USERNAME}/\${REPOSITORY}\""
+            echo "TIME=5"
+            echo "export USER=$USER"
+            echo -e "\ngit clone \"\${URI}\" continuous && cd continuous || exit 1"
+            echo -e "git checkout $4 || exit 1"
+            echo "git log -1 --stat && sleep \"\${TIME}\" || exit 1"
+            echo "exit 0"
+        } > ${i}
+        chmod +x ${i}
+    done
+}
+
+gen "$1" "$2" "$3" "$4" "$5"

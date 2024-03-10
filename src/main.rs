@@ -2,18 +2,21 @@ use crate::helpers::{ko, ok, okay, run};
 use std::env::args;
 use std::fs;
 use std::io::Write;
-use std::path::Path;
-use std::path::MAIN_SEPARATOR;
+use std::path::{Path, MAIN_SEPARATOR};
 use std::process::{exit, Command};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
+
 pub mod helpers;
 
 enum Language {
     Rust,
     Go,
+    Docker,
+    Packer,
     Unknown,
 }
+
 fn check_rust(started: Instant) -> i32 {
     let audit = run(
         "Started",
@@ -26,12 +29,12 @@ fn check_rust(started: Instant) -> i32 {
     );
 
     let clippy = run("Started",
-        "Clippy",
-        "cargo",
-        "clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates  -D unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -F clippy::cargo",
-        "Your code is correct",
-        "Your code is incorrect",
-        Instant::now());
+                     "Clippy",
+                     "cargo",
+                     "clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates  -D unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -F clippy::cargo",
+                     "Your code is correct",
+                     "Your code is incorrect",
+                     Instant::now());
     let tests = run(
         "Started",
         "Tests",
@@ -119,19 +122,63 @@ fn check_go(started: Instant) -> i32 {
     }
 }
 
+fn packer(s: Instant) -> i32 {
+    run(
+        "Started",
+        "Packer",
+        "packer",
+        "build .",
+        "Your code  can be committed",
+        "Your code contains failures",
+        s,
+    )
+}
+
+fn docker(s: Instant) -> i32 {
+    let x = run(
+        "Started",
+        "Docker",
+        "docker-compose",
+        "up",
+        "Your code can be committed",
+        "Your code contains failures",
+        s,
+    );
+    let _ = run(
+        "Closing",
+        "Docker",
+        "docker-compose",
+        "down",
+        "Your code can be committed",
+        "Your code contains failures",
+        s,
+    );
+
+    match x {
+        0 => 0,
+        _ => 1,
+    }
+}
+
 fn check(language: &Language, s: Instant) -> i32 {
     match language {
-        Language::Rust => check_rust(Instant::now()),
-        Language::Go => check_go(Instant::now()),
+        Language::Rust => check_rust(s),
+        Language::Go => check_go(s),
         Language::Unknown => {
             ko("Language not supported", s);
             1
         }
+        Language::Docker => docker(s),
+        Language::Packer => packer(s),
     }
 }
 
 fn detect() -> Language {
-    if Path::new("Cargo.toml").exists() {
+    if Path::new("zuu.pkr.hcl").exists() {
+        Language::Packer
+    } else if Path::new("docker-compose.yml").exists() {
+        Language::Docker
+    } else if Path::new("Cargo.toml").exists() {
         Language::Rust
     } else if Path::new("go.mod").exists() {
         Language::Go
@@ -191,6 +238,7 @@ fn status() {
         println!();
     }
 }
+
 fn spin(b: &str, data: &str) {
     let i = ["|", "/", "-", "\\", "|"];
     for &x in &i {
