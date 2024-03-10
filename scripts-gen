@@ -14,6 +14,7 @@ function gen()
             echo -e "\ngit clone \"\${URI}\" continuous && cd continuous || exit 1"
             echo -e "git checkout $4 || exit 1"
             echo "git log -1 --stat && sleep \"\${TIME}\" || exit 1"
+            echo "zuu || exit 1"
             echo "exit 0"
         } > ${i}
         chmod +x ${i}
