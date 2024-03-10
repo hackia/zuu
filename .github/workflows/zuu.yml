@@ -17,10 +17,6 @@ jobs:
     - uses: actions/checkout@v3
     - name: deps
       run: cargo install cargo-audit zuu
-      if: matrix.os == 'windows-latest'
-    - name: zuu
-      run: git clone https://github.com/otechdo/zuu .\app && cd .\app &&  git checkout "${GITHUB_REF##*/}"  && zuu
-      if: matrix.os != 'windows-latest'
     - name: zuu
       run: git clone https://github.com/otechdo/zuu app && cd app &&  git checkout "${GITHUB_REF##*/}"  && zuu
     
