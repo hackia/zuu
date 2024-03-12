@@ -196,6 +196,7 @@ fn status() {
             .success();
         println!();
     }
+
     if Path::new(".hg").exists() {
         println!("\x1b[1;32m    Previous\x1b[0m\n");
         let _ = Command::new("hg")
@@ -285,6 +286,30 @@ fn main() {
     }
     if args.len().eq(&2) && args.get(1).unwrap().eq("--watch") {
         watch(s);
+    }
+
+    if args.len().eq(&2) && args.get(1).unwrap().eq("--rust") {
+        exit(run(
+            "Started",
+            "Rust",
+            "bash",
+            "zuu-rust",
+            "Your code can be committed",
+            "Your code contains failures",
+            s,
+        ));
+    }
+
+    if args.len().eq(&2) && args.get(1).unwrap().eq("--go") {
+        exit(run(
+            "Started",
+            "Python",
+            "bash",
+            "zuu-go",
+            "Your code can be committed",
+            "Your code contains failures",
+            s,
+        ));
     }
     let code = check(&detect(), s);
     status();
