@@ -160,7 +160,7 @@ fn check(language: &Language, s: Instant) -> i32 {
 }
 
 fn detect() -> Language {
-    if Path::new("../compose.yaml").exists() {
+    if Path::new("compose.yaml").exists() {
         Language::Docker
     } else if Path::new("Cargo.toml").exists() {
         Language::Rust
