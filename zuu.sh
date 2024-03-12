@@ -1,0 +1,53 @@
+#!/usr/bin/bash
+
+if [ -n "$GIT_DIR" ]
+then
+  unset GIT_DIR
+fi
+
+tput civis
+LINES=$(tput lines)
+COLUMNS=$(tput cols)
+TASKS=('cargo verify-project' 'cargo fmt --check' 'cargo audit' 'cargo clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates  -D unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -F clippy::cargo ' 'cargo test' 'cargo check')
+
+function shutdown() {
+  tput cnorm # reset cursor
+}
+trap shutdown EXIT
+
+function cursorBack() {
+  echo -en "\033[$1D"
+  # Mac compatible, but goes back to first column always. See comments
+  #echo -en "\r"
+}
+
+function run() {
+  output "$1"
+  if ! $x ;
+  then
+      tput cnorm
+      exit 1
+  fi
+}
+
+
+function output {
+    local b=""
+    for (( i = 0; i < (COLUMNS); i++ ))
+    do
+        b+="="
+    done
+    tput cuf 0
+    printf "\n%s\n" "$b"
+    printf "\n%*s\n" $(((${#1}+COLUMNS)/2)) "$1"
+    tput cuf 0
+    printf "\n%s\n\n" "$b"
+}
+
+for x in "${TASKS[@]}"
+do
+  run "$x"
+done
+
+output "The code can be committed"
+exit 0

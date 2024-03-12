@@ -13,7 +13,6 @@ enum Language {
     Rust,
     Go,
     Docker,
-    Packer,
     Unknown,
 }
 
@@ -122,18 +121,6 @@ fn check_go(started: Instant) -> i32 {
     }
 }
 
-fn packer(s: Instant) -> i32 {
-    run(
-        "Started",
-        "Packer",
-        "packer",
-        "build .",
-        "Your code  can be committed",
-        "Your code contains failures",
-        s,
-    )
-}
-
 fn docker(s: Instant) -> i32 {
     let x = run(
         "Started",
@@ -169,14 +156,11 @@ fn check(language: &Language, s: Instant) -> i32 {
             1
         }
         Language::Docker => docker(s),
-        Language::Packer => packer(s),
     }
 }
 
 fn detect() -> Language {
-    if Path::new("zuu.pkr.hcl").exists() {
-        Language::Packer
-    } else if Path::new("docker-compose.yml").exists() {
+    if Path::new("../compose.yaml").exists() {
         Language::Docker
     } else if Path::new("Cargo.toml").exists() {
         Language::Rust

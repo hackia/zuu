@@ -1,0 +1,10 @@
+version: '3'
+services:
+  zuu:
+    environment:
+      TERM: xterm-color
+    image: taishingi/rlang:stable
+    volumes:
+      - .:/app
+    entrypoint: ["/zuu.sh"]
+
