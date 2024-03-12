@@ -64,11 +64,11 @@ fn check_rust(started: Instant) -> i32 {
 
     if format.eq(&0) && checkup.eq(&0) && tests.eq(&0) && clippy.eq(&0) && audit.eq(&0) {
         ok("Your code can be committed", started);
-        println!();
+        status();
         0
     } else {
         ko("Your code contains failures", started);
-        println!();
+        status();
         1
     }
 }
@@ -112,15 +112,43 @@ fn check_go(started: Instant) -> i32 {
     );
     if vet.eq(&0) && tests.eq(&0) && tests.eq(&0) && verify.eq(&0) && build.eq(&0) {
         ok("Your code can be committed", started);
-        println!();
+        status();
         0
     } else {
         ko("Your code contains failures", started);
-        println!();
+        status();
         1
     }
 }
 
+fn check_go_bash(s: Instant) -> i32 {
+    print!("{}", ansi_escapes::ClearScreen);
+    let x = run(
+        "Started",
+        "Go",
+        "bash",
+        "zuu-go",
+        "Your code can be committed",
+        "Your code contains failures",
+        s,
+    );
+    status();
+    x
+}
+fn check_rust_bash(s: Instant) -> i32 {
+    print!("{}", ansi_escapes::ClearScreen);
+    let x = run(
+        "Started",
+        "Rust",
+        "bash",
+        "zuu-rust",
+        "Your code can be committed",
+        "Your code contains failures",
+        s,
+    );
+    status();
+    x
+}
 fn docker(s: Instant) -> i32 {
     let x = run(
         "Started",
@@ -257,26 +285,32 @@ fn init() {
     }
 }
 
+fn waiting(code: i32) {
+    print!("{}", ansi_escapes::CursorHide);
+    okay("Press Ctrl+c to quit");
+    if code.eq(&0) {
+        for _t in 1..61 {
+            spin("Success", "Your code can be committed");
+        }
+    } else {
+        for _t in 1..61 {
+            spin("Failure", "Your code contains failures");
+        }
+    }
+}
+
 fn watch(s: Instant) {
     print!("{}", ansi_escapes::CursorHide);
     ok("Enter in watch mode", s);
     loop {
         let code = check(&detect(), s);
         status();
-        okay("Press Ctrl+c to quit");
-        if code.eq(&0) {
-            for _t in 1..61 {
-                spin("Success", "Your code can be committed");
-            }
-        } else {
-            for _t in 1..61 {
-                spin("Failure", "Your code contains failures");
-            }
-        }
+        waiting(code);
     }
 }
 
 fn main() {
+    print!("{}", ansi_escapes::CursorHide);
     let s = Instant::now();
     let args: Vec<String> = args().collect();
     if args.len().eq(&2) && args.get(1).unwrap().eq("init") {
@@ -284,8 +318,18 @@ fn main() {
         okay("Your project it's now tracked by zuu");
         exit(0);
     }
-    if args.len().eq(&2) && args.get(1).unwrap().eq("--watch") {
-        watch(s);
+    if args.contains(&"--watch".to_string()) {
+        if args.get(1).unwrap().eq("--go") {
+            loop {
+                waiting(check_go_bash(s));
+            }
+        } else if args.get(1).unwrap().eq("--rust") {
+            loop {
+                waiting(check_rust_bash(s));
+            }
+        } else {
+            watch(s);
+        }
     }
 
     if args.len().eq(&2) && args.get(1).unwrap().eq("--rust") {
@@ -301,17 +345,10 @@ fn main() {
     }
 
     if args.len().eq(&2) && args.get(1).unwrap().eq("--go") {
-        exit(run(
-            "Started",
-            "Python",
-            "bash",
-            "zuu-go",
-            "Your code can be committed",
-            "Your code contains failures",
-            s,
-        ));
+        exit(check_go_bash(s));
     }
     let code = check(&detect(), s);
     status();
+    print!("{}", ansi_escapes::CursorShow);
     exit(code);
 }
