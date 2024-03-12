@@ -8,7 +8,7 @@ fi
 tput civis
 LINES=$(tput lines)
 COLUMNS=$(tput cols)
-TASKS=('mod verify' 'go build' 'go test -v' 'go vet')
+TASKS=('go mod verify' 'go build' 'go test -v' 'go vet')
 
 function shutdown() {
   tput cnorm # reset cursor
