@@ -6,5 +6,5 @@ services:
     image: taishingi/rlang:stable
     volumes:
       - .:/app
-    entrypoint: ["/zuu.sh"]
+    entrypoint: ["/app/zuu.sh"]
 
