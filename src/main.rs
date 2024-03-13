@@ -332,7 +332,7 @@ fn main() {
     }
     if args.contains(&"--watch".to_string()) {
         watch(s);
-    }   
+    }
     if args.len().eq(&2) && args.get(1).unwrap().eq("--rust") {
         exit(run(
             "Started",
