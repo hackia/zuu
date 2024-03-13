@@ -319,11 +319,11 @@ fn main() {
         exit(0);
     }
     if args.contains(&"--watch".to_string()) {
-        if args.get(1).unwrap().eq("--go") {
+        if args.get(1).unwrap().eq("--go") || args.get(2).unwrap().eq("--go") {
             loop {
                 waiting(check_go_bash(s));
             }
-        } else if args.get(1).unwrap().eq("--rust") {
+        } else if args.get(1).unwrap().eq("--rust") || args.get(2).unwrap().eq("--rust") {
             loop {
                 waiting(check_rust_bash(s));
             }
