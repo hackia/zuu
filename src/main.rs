@@ -303,9 +303,7 @@ fn watch(s: Instant) {
     print!("{}", ansi_escapes::CursorHide);
     ok("Enter in watch mode", s);
     loop {
-        let code = check(&detect(), s);
-        status();
-        waiting(code);
+        waiting(check(&detect(), s));
     }
 }
 
@@ -318,7 +316,8 @@ fn main() {
         okay("Your project it's now tracked by zuu");
         exit(0);
     }
-    if args.contains(&"--watch".to_string()) {
+
+    if args.len() == 3 && args.contains(&"--watch".to_string()) {
         if args.get(1).unwrap().eq("--go") || args.get(2).unwrap().eq("--go") {
             loop {
                 waiting(check_go_bash(s));
@@ -331,7 +330,9 @@ fn main() {
             watch(s);
         }
     }
-
+    if args.contains(&"--watch".to_string()) {
+        watch(s);
+    }   
     if args.len().eq(&2) && args.get(1).unwrap().eq("--rust") {
         exit(run(
             "Started",
