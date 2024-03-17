@@ -13,6 +13,6 @@ fn main() -> ExitCode {
         println!("\x1b[1;32m    Finished\x1b[37m zuu installed successfully\x1b[30m");
         exit(0);
     }
-    println!("zuu install fail");
+    println!("\x1b[1;32m    Finished\x1b[37m zuu install fail\x1b[30m");
     exit(1);
 }

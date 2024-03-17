@@ -1,7 +1,10 @@
 use crate::helpers::{ko, ok, okay, run};
+use crate::Language::{Cmake, Composer, Docker, Go, Make, Rust, Unknown};
+use std::collections::HashMap;
 use std::env::args;
 use std::fs;
-use std::io::Write;
+use std::fs::File;
+use std::io::{read_to_string, Write};
 use std::path::{Path, MAIN_SEPARATOR};
 use std::process::{exit, Command};
 use std::thread::sleep;
@@ -13,7 +16,78 @@ enum Language {
     Rust,
     Go,
     Docker,
+    Make,
+    Composer,
+    Cmake,
     Unknown,
+}
+
+fn make(x: bool, started: Instant, cmd: &str) -> i32 {
+    if x {
+        return run(
+            "Started",
+            cmd,
+            "make",
+            cmd,
+            format!("make {cmd} executed successfully").as_str(),
+            format!("make {cmd} executed failure").as_str(),
+            started,
+        );
+    }
+    0
+}
+fn check_make(started: Instant) -> i32 {
+    let s = read_to_string(File::open("Makefile").expect("Failed to parse the Makefile")).unwrap();
+    if make(s.contains("all:"), started, "all").eq(&0)
+        && make(s.contains("install:"), started, "install").eq(&0)
+        && make(s.contains("dist:"), started, "dist").eq(&0)
+        && make(s.contains("clean:"), started, "clean").eq(&0)
+        && make(s.contains("uninstall:"), started, "uninstall").eq(&0)
+        && make(s.contains("install-strip:"), started, "install-strip").eq(&0)
+        && make(s.contains("distclean:"), started, "distclean").eq(&0)
+        && make(s.contains("mostlyclean:"), started, "mostlyclean").eq(&0)
+        && make(s.contains("maintainer-clean:"), started, "maintainer-clean").eq(&0)
+    {
+        return 0;
+    }
+    1
+}
+
+fn check_cmake(started: Instant) -> i32 {
+    if run(
+        "Started",
+        "Cmake",
+        "cmake",
+        ".",
+        "Makefiel created successfully",
+        "Failed to create Makefile",
+        started,
+    )
+    .eq(&0)
+        && run(
+            "Started",
+            "Make",
+            "make",
+            "",
+            "Project built successfully",
+            "Failed to built the project",
+            started,
+        )
+        .eq(&0)
+        && run(
+            "Started",
+            "Install",
+            "make",
+            "install",
+            "Project installed successfully",
+            "Failed to install the project",
+            started,
+        )
+        .eq(&0)
+    {
+        return 0;
+    }
+    1
 }
 
 fn check_rust(started: Instant) -> i32 {
@@ -177,26 +251,90 @@ fn docker(s: Instant) -> i32 {
 
 fn check(language: &Language, s: Instant) -> i32 {
     match language {
-        Language::Rust => check_rust(s),
-        Language::Go => check_go(s),
-        Language::Unknown => {
+        Rust => check_rust(s),
+        Go => check_go(s),
+        Docker => docker(s),
+        Make => check_make(s),
+        Composer => check_composer(s),
+        Cmake => check_cmake(s),
+        Unknown => {
             ko("Language not supported", s);
             1
         }
-        Language::Docker => docker(s),
     }
 }
 
-fn detect() -> Language {
-    if Path::new("compose.yaml").exists() {
-        Language::Docker
-    } else if Path::new("Cargo.toml").exists() {
-        Language::Rust
-    } else if Path::new("go.mod").exists() {
-        Language::Go
-    } else {
-        Language::Unknown
+fn detect() -> &'static Language {
+    for (f, l) in &all() {
+        if Path::new(f.as_str()).exists() {
+            return l;
+        }
     }
+    &Unknown
+}
+
+fn php(started: Instant, f: &str, t: &str, command: &str) -> i32 {
+    if Path::new(f).exists() {
+        return run(
+            "Started",
+            t,
+            "php",
+            command,
+            "All tests passes",
+            "Test have failures",
+            started,
+        );
+    }
+    1
+}
+fn check_composer(started: Instant) -> i32 {
+    let audit = run(
+        "Started",
+        "Audit",
+        "composer",
+        "audit",
+        "Audit no detect error",
+        "Audit detect errors",
+        started,
+    );
+    let diagnose = run(
+        "Started",
+        "Diagnose",
+        "composer",
+        "diagnose",
+        "Audit no detect error",
+        "Diagnose detect errors",
+        started,
+    );
+    let tests = php(
+        started,
+        "phpunit.xml",
+        "Phpunit",
+        format!("vendor{MAIN_SEPARATOR}bin{MAIN_SEPARATOR}phpunit").as_str(),
+    );
+    let checkup = php(
+        started,
+        "phpstan.neon",
+        "Phpstan",
+        format!("vendor{MAIN_SEPARATOR}bin{MAIN_SEPARATOR}phpstan").as_str(),
+    );
+
+    if tests.eq(&0) && checkup.eq(&0) && audit.eq(&0) && diagnose.eq(&0) {
+        return 0;
+    }
+    1
+}
+fn all() -> HashMap<String, &'static Language> {
+    let mut all: HashMap<String, &Language> = HashMap::new();
+    assert!(all.insert(String::from("compose.yaml"), &Docker).is_none());
+    assert!(all.insert(String::from("Cargo.toml"), &Rust).is_none());
+    assert!(all.insert(String::from("go.mod"), &Go).is_none());
+    assert!(all.insert(String::from("Makefile"), &Make).is_none());
+    assert!(all
+        .insert(String::from("composer.json"), &Composer)
+        .is_none());
+    assert!(all.insert(String::from("CMakeLists.txt"), &Cmake).is_none());
+    all
 }
 
 fn status() {
@@ -275,6 +413,7 @@ fn init() {
         f.write_all(git_hook_content.as_bytes())
             .expect("failed to write content");
         f.sync_all().expect("failed to sync data");
+        okay("Don't forget to add the execution right for the .git/hooks/pre-commit file");
     }
     if Path::new(".hg").exists() {
         let mut f = fs::File::create(format!(".hg{MAIN_SEPARATOR}hgrc").as_str())
@@ -303,7 +442,7 @@ fn watch(s: Instant) {
     print!("{}", ansi_escapes::CursorHide);
     ok("Enter in watch mode", s);
     loop {
-        waiting(check(&detect(), s));
+        waiting(check(detect(), s));
     }
 }
 
@@ -345,11 +484,10 @@ fn main() {
             s,
         ));
     }
-
     if args.len().eq(&2) && args.get(1).unwrap().eq("--go") {
         exit(check_go_bash(s));
     }
-    let code = check(&detect(), s);
+    let code = check(detect(), s);
     status();
     print!("{}", ansi_escapes::CursorShow);
     exit(code);
