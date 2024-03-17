@@ -10,5 +10,15 @@ authors = ["Willy Micieli"]
 repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
 
+[[bin]]
+name = "uninstall_zuu"
+path = "src/delete.rs"
+
+[[bin]]
+name = "install_zuu"
+path = "src/install.rs"
+
+
+
 [dependencies]
 ansi-escapes = "=0.1.1"
