@@ -4,6 +4,7 @@ use std::process::{exit, ExitCode};
 const ZUU: &str = "/usr/bin/zuu";
 
 fn main() -> ExitCode {
+    print!("{}", ansi_escapes::ClearScreen);
     let e = remove_file(ZUU);
     match e {
         Ok(()) => {
@@ -11,7 +12,7 @@ fn main() -> ExitCode {
             exit(0);
         }
         Err(x) => {
-            println!("{}", x.kind().to_string());
+            println!("{}", x.kind());
             exit(1);
         }
     }

@@ -308,6 +308,7 @@ fn watch(s: Instant) {
 }
 
 fn main() {
+    print!("{}", ansi_escapes::ClearScreen);
     print!("{}", ansi_escapes::CursorHide);
     let s = Instant::now();
     let args: Vec<String> = args().collect();
