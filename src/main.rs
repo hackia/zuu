@@ -22,35 +22,71 @@ enum Language {
     Unknown,
 }
 
-fn make(x: bool, started: Instant, cmd: &str) -> i32 {
-    if x {
-        return run(
-            "Started",
-            cmd,
-            "make",
-            cmd,
-            format!("make {cmd} executed successfully").as_str(),
-            format!("make {cmd} executed failure").as_str(),
-            started,
-        );
+fn make(started: Instant, cmd: &str) -> i32 {
+    run(
+        "Started",
+        cmd,
+        "make",
+        cmd,
+        format!("make {cmd} executed successfully").as_str(),
+        format!("make {cmd} executed failure").as_str(),
+        started,
+    )
+}
+
+fn read_lines(filename: &str) -> Vec<String> {
+    read_to_string(File::open(filename).expect("failed to found"))
+        .unwrap() // panic on possible file-reading errors
+        .lines() // split the string into an iterator of string slices
+        .map(String::from) // make each slice into a string
+        .collect() // gather them together into a vector
+}
+
+fn check_make(started: Instant) -> i32 {
+    let mut cmd: Vec<String> = Vec::new();
+    for x in &read_lines("Makefile") {
+        if x.starts_with("all") {
+            cmd.push("all".to_string());
+        }
+        if x.starts_with("install") {
+            cmd.push("install".to_string());
+        }
+        if x.starts_with("dist") {
+            cmd.push("dist".to_string());
+        }
+        if x.starts_with("clean") {
+            cmd.push("clean".to_string());
+        }
+
+        if x.starts_with("uninstall") {
+            cmd.push("uninstall".to_string());
+        }
+        if x.starts_with("install") {
+            cmd.push("install".to_string());
+        }
+
+        if x.starts_with("install-strip") {
+            cmd.push("install-strip".to_string());
+        }
+        if x.starts_with("distclean") {
+            cmd.push("distclean".to_string());
+        }
+
+        if x.starts_with("install") {
+            cmd.push("install".to_string());
+        }
+
+        if x.starts_with("maintainer-clean") {
+            cmd.push("maintainer-clean".to_string());
+        }
+        if x.starts_with("mostlyclean") {
+            cmd.push("mostlyclean".to_string());
+        }
+    }
+    for x in &cmd {
+        assert!(make(started, x.as_str()).eq(&0));
     }
     0
-}
-fn check_make(started: Instant) -> i32 {
-    let s = read_to_string(File::open("Makefile").expect("Failed to parse the Makefile")).unwrap();
-    if make(s.contains("all:"), started, "all").eq(&0)
-        && make(s.contains("install:"), started, "install").eq(&0)
-        && make(s.contains("dist:"), started, "dist").eq(&0)
-        && make(s.contains("clean:"), started, "clean").eq(&0)
-        && make(s.contains("uninstall:"), started, "uninstall").eq(&0)
-        && make(s.contains("install-strip:"), started, "install-strip").eq(&0)
-        && make(s.contains("distclean:"), started, "distclean").eq(&0)
-        && make(s.contains("mostlyclean:"), started, "mostlyclean").eq(&0)
-        && make(s.contains("maintainer-clean:"), started, "maintainer-clean").eq(&0)
-    {
-        return 0;
-    }
-    1
 }
 
 fn check_cmake(started: Instant) -> i32 {
@@ -59,7 +95,7 @@ fn check_cmake(started: Instant) -> i32 {
         "Cmake",
         "cmake",
         ".",
-        "Makefiel created successfully",
+        "Makefile created successfully",
         "Failed to create Makefile",
         started,
     )
@@ -288,6 +324,16 @@ fn php(started: Instant, f: &str, t: &str, command: &str) -> i32 {
     1
 }
 fn check_composer(started: Instant) -> i32 {
+    assert!(run(
+        "Started",
+        "Install",
+        "composer",
+        "install",
+        "Project can be installed",
+        "Project install failed",
+        started
+    )
+    .eq(&0));
     let audit = run(
         "Started",
         "Audit",
@@ -447,7 +493,6 @@ fn watch(s: Instant) {
 }
 
 fn main() {
-    print!("{}", ansi_escapes::ClearScreen);
     print!("{}", ansi_escapes::CursorHide);
     let s = Instant::now();
     let args: Vec<String> = args().collect();
