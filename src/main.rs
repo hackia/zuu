@@ -1,18 +1,17 @@
 use crate::helpers::{ko, ok, okay, run};
 use crate::Language::{Cmake, Composer, Docker, Go, Make, Rust, Unknown};
 use std::collections::HashMap;
-use std::env::args;
-use std::fs;
 use std::fs::File;
 use std::io::{read_to_string, Write};
 use std::path::{Path, MAIN_SEPARATOR};
 use std::process::{exit, Command};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
+pub const SUCCESS: &str = "Success";
 
 pub mod helpers;
 
-enum Language {
+pub enum Language {
     Rust,
     Go,
     Docker,
@@ -22,6 +21,11 @@ enum Language {
     Unknown,
 }
 
+///
+///
+/// # Panics
+///
+#[must_use]
 fn make(started: Instant, cmd: &str) -> i32 {
     run(
         "Started",
@@ -34,6 +38,7 @@ fn make(started: Instant, cmd: &str) -> i32 {
     )
 }
 
+#[must_use]
 fn read_lines(filename: &str) -> Vec<String> {
     read_to_string(File::open(filename).expect("failed to found"))
         .unwrap() // panic on possible file-reading errors
@@ -41,291 +46,7 @@ fn read_lines(filename: &str) -> Vec<String> {
         .map(String::from) // make each slice into a string
         .collect() // gather them together into a vector
 }
-
-fn check_make(started: Instant) -> i32 {
-    let mut cmd: Vec<String> = Vec::new();
-    for x in &read_lines("Makefile") {
-        if x.starts_with("all") {
-            cmd.push("all".to_string());
-        }
-        if x.starts_with("install") {
-            cmd.push("install".to_string());
-        }
-        if x.starts_with("dist") {
-            cmd.push("dist".to_string());
-        }
-        if x.starts_with("clean") {
-            cmd.push("clean".to_string());
-        }
-
-        if x.starts_with("uninstall") {
-            cmd.push("uninstall".to_string());
-        }
-        if x.starts_with("install") {
-            cmd.push("install".to_string());
-        }
-
-        if x.starts_with("install-strip") {
-            cmd.push("install-strip".to_string());
-        }
-        if x.starts_with("distclean") {
-            cmd.push("distclean".to_string());
-        }
-
-        if x.starts_with("install") {
-            cmd.push("install".to_string());
-        }
-
-        if x.starts_with("maintainer-clean") {
-            cmd.push("maintainer-clean".to_string());
-        }
-        if x.starts_with("mostlyclean") {
-            cmd.push("mostlyclean".to_string());
-        }
-    }
-    for x in &cmd {
-        assert!(make(started, x.as_str()).eq(&0));
-    }
-    0
-}
-
-fn check_cmake(started: Instant) -> i32 {
-    if run(
-        "Started",
-        "Cmake",
-        "cmake",
-        ".",
-        "Makefile created successfully",
-        "Failed to create Makefile",
-        started,
-    )
-    .eq(&0)
-        && run(
-            "Started",
-            "Make",
-            "make",
-            "",
-            "Project built successfully",
-            "Failed to built the project",
-            started,
-        )
-        .eq(&0)
-        && run(
-            "Started",
-            "Install",
-            "make",
-            "install",
-            "Project installed successfully",
-            "Failed to install the project",
-            started,
-        )
-        .eq(&0)
-    {
-        return 0;
-    }
-    1
-}
-
-fn check_rust(started: Instant) -> i32 {
-    let audit = run(
-        "Started",
-        "Audit",
-        "cargo",
-        "audit",
-        "Audit no detect errors",
-        "Audit detect errors",
-        Instant::now(),
-    );
-
-    let clippy = run(
-        "Started",
-        "Clippy",
-        "cargo",
-        "clippy -- -F keyword_idents -F warnings
-                     -F let-underscore -F rust-2018-compatibility
-                     -F rust-2018-idioms  -F rust-2021-compatibility
-                     -F future-incompatible -F unused
-                     -F unused_crate_dependencies
-                     -F unused_extern_crates
-                     -D unused_macro_rules -F unused_results
-                     -F unused_qualifications -F nonstandard-style
-                     -F macro_use_extern_crate
-                     -F absolute_paths_not_starting_with_crate
-                     -F ambiguous_glob_imports -F clippy::all
-                     -F clippy::perf -F clippy::pedantic
-                     -F clippy::style -F clippy::suspicious
-                     -F clippy::correctness
-                     -F clippy::nursery
-                     -F clippy::complexity -F clippy::cargo",
-        "Your code is correct",
-        "Your code is incorrect",
-        Instant::now(),
-    );
-    let tests = run(
-        "Started",
-        "Tests",
-        "cargo",
-        "test --no-fail-fast",
-        "No test failures",
-        "Test have failures",
-        Instant::now(),
-    );
-    let checkup = run(
-        "Started",
-        "Check",
-        "cargo",
-        "check",
-        "Your code is correct",
-        "Your code is incorrect",
-        Instant::now(),
-    );
-    let format = run(
-        "Started",
-        "Format",
-        "cargo",
-        "fmt --check",
-        "Your code is formatted correctness",
-        "Your project is bad formatted",
-        Instant::now(),
-    );
-
-    if format.eq(&0) && checkup.eq(&0) && tests.eq(&0) && clippy.eq(&0) && audit.eq(&0) {
-        ok("Your code can be committed", started);
-        status();
-        0
-    } else {
-        ko("Your code contains failures", started);
-        status();
-        1
-    }
-}
-
-fn check_go(started: Instant) -> i32 {
-    let verify = run(
-        "Started",
-        "Verify",
-        "go",
-        "mod verify",
-        "Your code can it's verified successfully",
-        "Your project is not valid",
-        Instant::now(),
-    );
-    let build = run(
-        "Started",
-        "Build",
-        "go",
-        "build",
-        "Your code can be built",
-        "Your project cannot be built",
-        Instant::now(),
-    );
-    let tests = run(
-        "Started",
-        "Test",
-        "go",
-        "test -v",
-        "No test failures",
-        "Test have failures",
-        Instant::now(),
-    );
-    let vet = run(
-        "Started",
-        "Test",
-        "go",
-        "vet",
-        "No test failures",
-        "Test have failures",
-        Instant::now(),
-    );
-    if vet.eq(&0) && tests.eq(&0) && tests.eq(&0) && verify.eq(&0) && build.eq(&0) {
-        ok("Your code can be committed", started);
-        status();
-        0
-    } else {
-        ko("Your code contains failures", started);
-        status();
-        1
-    }
-}
-
-fn check_go_bash(s: Instant) -> i32 {
-    print!("{}", ansi_escapes::ClearScreen);
-    let x = run(
-        "Started",
-        "Go",
-        "bash",
-        "zuu-go",
-        "Your code can be committed",
-        "Your code contains failures",
-        s,
-    );
-    status();
-    x
-}
-fn check_rust_bash(s: Instant) -> i32 {
-    print!("{}", ansi_escapes::ClearScreen);
-    let x = run(
-        "Started",
-        "Rust",
-        "bash",
-        "zuu-rust",
-        "Your code can be committed",
-        "Your code contains failures",
-        s,
-    );
-    status();
-    x
-}
-fn docker(s: Instant) -> i32 {
-    let x = run(
-        "Started",
-        "Docker",
-        "docker-compose",
-        "up",
-        "Your code can be committed",
-        "Your code contains failures",
-        s,
-    );
-    let _ = run(
-        "Closing",
-        "Docker",
-        "docker-compose",
-        "down",
-        "Your code can be committed",
-        "Your code contains failures",
-        s,
-    );
-
-    match x {
-        0 => 0,
-        _ => 1,
-    }
-}
-
-fn check(language: &Language, s: Instant) -> i32 {
-    match language {
-        Rust => check_rust(s),
-        Go => check_go(s),
-        Docker => docker(s),
-        Make => check_make(s),
-        Composer => check_composer(s),
-        Cmake => check_cmake(s),
-        Unknown => {
-            ko("Language not supported", s);
-            1
-        }
-    }
-}
-
-fn detect() -> &'static Language {
-    for (f, l) in &all() {
-        if Path::new(f.as_str()).exists() {
-            return l;
-        }
-    }
-    &Unknown
-}
-
+#[must_use]
 fn php(started: Instant, f: &str, t: &str, command: &str) -> i32 {
     if Path::new(f).exists() {
         return run(
@@ -340,64 +61,16 @@ fn php(started: Instant, f: &str, t: &str, command: &str) -> i32 {
     }
     1
 }
-fn check_composer(started: Instant) -> i32 {
-    assert!(run(
-        "Started",
-        "Install",
-        "composer",
-        "install",
-        "Project can be installed",
-        "Project install failed",
-        started
-    )
-    .eq(&0));
-    let audit = run(
-        "Started",
-        "Audit",
-        "composer",
-        "audit",
-        "Audit no detect error",
-        "Audit detect errors",
-        started,
-    );
-    let diagnose = run(
-        "Started",
-        "Diagnose",
-        "composer",
-        "diagnose",
-        "Audit no detect error",
-        "Diagnose detect errors",
-        started,
-    );
-    let tests = php(
-        started,
-        "phpunit.xml",
-        "Phpunit",
-        format!("vendor{MAIN_SEPARATOR}bin{MAIN_SEPARATOR}phpunit").as_str(),
-    );
-    let checkup = php(
-        started,
-        "phpstan.neon",
-        "Phpstan",
-        format!("vendor{MAIN_SEPARATOR}bin{MAIN_SEPARATOR}phpstan").as_str(),
-    );
-
-    if tests.eq(&0) && checkup.eq(&0) && audit.eq(&0) && diagnose.eq(&0) {
-        return 0;
+fn spin(b: &str, data: &str) {
+    let i = ["|", "/", "-", "\\", "|"];
+    for &x in &i {
+        print!("\r\x1b[1;37m {x}\x1b[1;32m  Sleeping\x1b[0m");
+        std::io::stdout().flush().expect("a");
+        sleep(Duration::from_millis(100));
     }
-    1
-}
-fn all() -> HashMap<String, &'static Language> {
-    let mut all: HashMap<String, &Language> = HashMap::new();
-    assert!(all.insert(String::from("compose.yaml"), &Docker).is_none());
-    assert!(all.insert(String::from("Cargo.toml"), &Rust).is_none());
-    assert!(all.insert(String::from("go.mod"), &Go).is_none());
-    assert!(all.insert(String::from("Makefile"), &Make).is_none());
-    assert!(all
-        .insert(String::from("composer.json"), &Composer)
-        .is_none());
-    assert!(all.insert(String::from("CMakeLists.txt"), &Cmake).is_none());
-    all
+    std::io::stdout().flush().expect("a");
+    print!("\r\x1b[1;37m *\x1b[1;32m   {b} \x1b[1;37m{data}\x1b[0m");
+    std::io::stdout().flush().expect("a");
 }
 
 fn status() {
@@ -425,132 +98,402 @@ fn status() {
             .success();
         println!();
     }
-
-    if Path::new(".hg").exists() {
-        println!("\x1b[1;32m    Previous\x1b[0m\n");
-        let _ = Command::new("hg")
-            .arg("log")
-            .arg("-l")
-            .arg("1")
-            .arg("--stat")
-            .current_dir(".")
-            .spawn()
-            .unwrap()
-            .wait()
-            .unwrap()
-            .success();
-        println!("\n\x1b[1;32m     Current\x1b[0m\n");
-        let _ = Command::new("hg")
-            .arg("diff")
-            .arg("--stat")
-            .current_dir(".")
-            .spawn()
-            .unwrap()
-            .wait()
-            .unwrap()
-            .success();
-        println!();
-    }
 }
 
-fn spin(b: &str, data: &str) {
-    let i = ["|", "/", "-", "\\", "|"];
-    for &x in &i {
-        print!("\r\x1b[1;37m {x}\x1b[1;32m  Sleeping\x1b[0m");
-        std::io::stdout().flush().expect("a");
-        sleep(Duration::from_millis(100));
-    }
-    std::io::stdout().flush().expect("a");
-    print!("\r\x1b[1;37m *\x1b[1;32m   {b} \x1b[1;37m{data}\x1b[0m");
-    std::io::stdout().flush().expect("a");
+pub struct Zuu {
+    started: Instant,
+    clippy: String,
 }
-
-fn init() {
-    let git_hook_content = "#!/bin/sh\nzuu\n exit $?";
-    let hg_hook_content = "[hooks]\nprecommit = zuu";
-    if Path::new(".git").exists() {
-        let mut f = fs::File::create(
-            format!(".git{MAIN_SEPARATOR}hooks{MAIN_SEPARATOR}pre-commit").as_str(),
-        )
-        .expect("failed to create the hook file");
-        f.write_all(git_hook_content.as_bytes())
-            .expect("failed to write content");
-        f.sync_all().expect("failed to sync data");
-        okay("Don't forget to add the execution right for the .git/hooks/pre-commit file");
+impl Zuu {
+    #[must_use]
+    pub const fn new(x: Instant) -> Self {
+        Self {
+            started: x,
+            clippy: String::new(),
+        }
     }
-    if Path::new(".hg").exists() {
-        let mut f = fs::File::create(format!(".hg{MAIN_SEPARATOR}hgrc").as_str())
+    pub fn waiting(&mut self, code: i32) {
+        print!("{}", ansi_escapes::CursorHide);
+        okay("Press Ctrl+c to quit");
+        if code.eq(&0) {
+            for _t in 1..61 {
+                spin("Success", "Your code can be committed");
+            }
+        } else {
+            for _t in 1..61 {
+                spin("Failure", "Your code contains failures");
+            }
+        }
+    }
+
+    ///
+    /// # Panics
+    ///
+    pub fn init(&mut self) -> i32 {
+        let git_hook_content = "#!/bin/sh\nzuu\n exit $?";
+        let hg_hook_content = "[hooks]\nprecommit = zuu";
+        if Path::new(".git").exists() {
+            let mut f = File::create(
+                format!(".git{MAIN_SEPARATOR}hooks{MAIN_SEPARATOR}pre-commit").as_str(),
+            )
             .expect("failed to create the hook file");
-        f.write_all(hg_hook_content.as_bytes())
-            .expect("failed to write content");
-        f.sync_all().expect("failed to sync data");
-    }
-}
-
-fn waiting(code: i32) {
-    print!("{}", ansi_escapes::CursorHide);
-    okay("Press Ctrl+c to quit");
-    if code.eq(&0) {
-        for _t in 1..61 {
-            spin("Success", "Your code can be committed");
+            f.write_all(git_hook_content.as_bytes())
+                .expect("failed to write content");
+            f.sync_all().expect("failed to sync data");
+            okay("Don't forget to add the execution right for the .git/hooks/pre-commit file");
+            okay("Your project it's now tracked by zuu");
         }
-    } else {
-        for _t in 1..61 {
-            spin("Failure", "Your code contains failures");
+        if Path::new(".hg").exists() {
+            let mut f = File::create(format!(".hg{MAIN_SEPARATOR}hgrc").as_str())
+                .expect("failed to create the hook file");
+            f.write_all(hg_hook_content.as_bytes())
+                .expect("failed to write content");
+            f.sync_all().expect("failed to sync data");
+            ok("Your project it's now tracked by zuu", self.started);
+            exit(0);
+        }
+
+        ko("Versioning must be git or mercurial", self.started);
+        exit(1);
+    }
+
+    ///
+    /// # Panics
+    ///
+    pub fn all(&mut self) -> HashMap<String, &'static Language> {
+        let mut all: HashMap<String, &'static Language> = HashMap::new();
+        assert!(all.insert(String::from("compose.yaml"), &Docker).is_none());
+        assert!(all.insert(String::from("Cargo.toml"), &Rust).is_none());
+        assert!(all.insert(String::from("go.mod"), &Go).is_none());
+        assert!(all.insert(String::from("Makefile"), &Make).is_none());
+        assert!(all
+            .insert(String::from("composer.json"), &Composer)
+            .is_none());
+        assert!(all.insert(String::from("CMakeLists.txt"), &Cmake).is_none());
+        all
+    }
+    #[must_use]
+    pub fn detect(&mut self) -> &'static Language {
+        for (f, &l) in &self.all() {
+            if Path::new(f.as_str()).exists() {
+                return l;
+            }
+        }
+        &Unknown
+    }
+
+    ///
+    /// # Panics
+    ///
+    #[must_use]
+    pub fn go(&mut self) -> i32 {
+        let verify = run(
+            "Started",
+            "Verify",
+            "go",
+            "mod verify",
+            "Your code can it's verified successfully",
+            "Your project is not valid",
+            Instant::now(),
+        );
+        let build = run(
+            "Started",
+            "Build",
+            "go",
+            "build",
+            "Your code can be built",
+            "Your project cannot be built",
+            Instant::now(),
+        );
+        let tests = run(
+            "Started",
+            "Test",
+            "go",
+            "test -v",
+            "No test failures",
+            "Test have failures",
+            Instant::now(),
+        );
+        let vet = run(
+            "Started",
+            "Test",
+            "go",
+            "vet",
+            "No test failures",
+            "Test have failures",
+            Instant::now(),
+        );
+        if vet.eq(&0) && tests.eq(&0) && tests.eq(&0) && verify.eq(&0) && build.eq(&0) {
+            ok("Your code can be committed", self.started);
+            status();
+            0
+        } else {
+            ko("Your code contains failures", self.started);
+            status();
+            1
         }
     }
-}
 
-fn watch(s: Instant) {
-    print!("{}", ansi_escapes::CursorHide);
-    ok("Enter in watch mode", s);
-    loop {
-        waiting(check(detect(), s));
+    ///
+    /// a
+    ///
+    /// # Panics
+    ///
+    #[must_use]
+    pub fn composer(&mut self) -> i32 {
+        assert!(run(
+            "Started",
+            "Install",
+            "composer",
+            "install",
+            "Project can be installed",
+            "Project install failed",
+            self.started
+        )
+        .eq(&0));
+        let audit = run(
+            "Started",
+            "Audit",
+            "composer",
+            "audit",
+            "Audit no detect error",
+            "Audit detect errors",
+            self.started,
+        );
+        let diagnose = run(
+            "Started",
+            "Diagnose",
+            "composer",
+            "diagnose",
+            "Audit no detect error",
+            "Diagnose detect errors",
+            self.started,
+        );
+        let tests = php(
+            self.started,
+            "phpunit.xml",
+            "Phpunit",
+            format!("vendor{MAIN_SEPARATOR}bin{MAIN_SEPARATOR}phpunit").as_str(),
+        );
+        let checkup = php(
+            self.started,
+            "phpstan.neon",
+            "Phpstan",
+            format!("vendor{MAIN_SEPARATOR}bin{MAIN_SEPARATOR}phpstan").as_str(),
+        );
+
+        if tests.eq(&0) && checkup.eq(&0) && audit.eq(&0) && diagnose.eq(&0) {
+            return 0;
+        }
+        1
+    }
+    #[must_use]
+    pub fn cmake(&mut self) -> i32 {
+        if run(
+            "Started",
+            "Cmake",
+            "cmake",
+            ".",
+            "Makefile created successfully",
+            "Failed to create Makefile",
+            self.started,
+        )
+        .eq(&0)
+            && run(
+                "Started",
+                "Make",
+                "make",
+                "",
+                "Project built successfully",
+                "Failed to built the project",
+                self.started,
+            )
+            .eq(&0)
+            && run(
+                "Started",
+                "Install",
+                "make",
+                "install",
+                "Project installed successfully",
+                "Failed to install the project",
+                self.started,
+            )
+            .eq(&0)
+        {
+            return 0;
+        }
+        1
+    }
+    #[must_use]
+    pub fn docker(&mut self) -> i32 {
+        let x = run(
+            "Started",
+            "Docker",
+            "docker-compose",
+            "up",
+            "Your code can be committed",
+            "Your code contains failures",
+            self.started,
+        );
+        let _ = run(
+            "Closing",
+            "Docker",
+            "docker-compose",
+            "down",
+            "Your code can be committed",
+            "Your code contains failures",
+            self.started,
+        );
+
+        match x {
+            -1 => 0,
+            _ => 1,
+        }
+    }
+
+    ///
+    /// # Panics
+    ///
+    #[must_use]
+    pub fn make(&mut self) -> i32 {
+        let mut cmd: Vec<String> = Vec::new();
+        for x in &read_lines("Makefile") {
+            if x.starts_with("all") {
+                cmd.push("all".to_string());
+            }
+            if x.starts_with("install") {
+                cmd.push("install".to_string());
+            }
+            if x.starts_with("dist") {
+                cmd.push("dist".to_string());
+            }
+            if x.starts_with("clean") {
+                cmd.push("clean".to_string());
+            }
+
+            if x.starts_with("uninstall") {
+                cmd.push("uninstall".to_string());
+            }
+            if x.starts_with("install") {
+                cmd.push("install".to_string());
+            }
+
+            if x.starts_with("install-strip") {
+                cmd.push("install-strip".to_string());
+            }
+            if x.starts_with("distclean") {
+                cmd.push("distclean".to_string());
+            }
+
+            if x.starts_with("install") {
+                cmd.push("install".to_string());
+            }
+
+            if x.starts_with("maintainer-clean") {
+                cmd.push("maintainer-clean".to_string());
+            }
+            if x.starts_with("mostlyclean") {
+                cmd.push("mostlyclean".to_string());
+            }
+        }
+        for x in &cmd {
+            assert!(make(self.started, x.as_str()).eq(&0));
+        }
+        0
+    }
+    #[must_use]
+    pub fn rust(&mut self) -> i32 {
+        let audit = run(
+            "Started",
+            "Audit",
+            "cargo",
+            "audit",
+            "Audit no detect errors",
+            "Audit detect errors",
+            Instant::now(),
+        );
+
+        let clippy = run(
+            "Started",
+            "Clippy",
+            "cargo",
+            "clippy -- -F keyword_idents -F warnings
+                     -F let-underscore -F rust-2018-compatibility
+                     -F rust-2018-idioms  -F rust-2021-compatibility
+                     -F future-incompatible -F unused
+                     -F unused_crate_dependencies
+                     -F unused_extern_crates
+                     -D unused_macro_rules -F unused_results
+                     -F unused_qualifications -F nonstandard-style
+                     -F macro_use_extern_crate
+                     -F absolute_paths_not_starting_with_crate
+                     -F ambiguous_glob_imports -F clippy::all
+                     -F clippy::perf -F clippy::pedantic
+                     -F clippy::style -F clippy::suspicious
+                     -F clippy::correctness
+                     -F clippy::nursery
+                     -F clippy::complexity -F clippy::cargo",
+            "Your code is correct",
+            "Your code is incorrect",
+            Instant::now(),
+        );
+        if clippy.eq(&0) {
+            self.clippy.push_str(SUCCESS);
+        }
+        let tests = run(
+            "Started",
+            "Tests",
+            "cargo",
+            "test --no-fail-fast",
+            "No test failures",
+            "Test have failures",
+            Instant::now(),
+        );
+        let checkup = run(
+            "Started",
+            "Check",
+            "cargo",
+            "check",
+            "Your code is correct",
+            "Your code is incorrect",
+            Instant::now(),
+        );
+        let format = run(
+            "Started",
+            "Format",
+            "cargo",
+            "fmt --check",
+            "Your code is formatted correctness",
+            "Your project is bad formatted",
+            Instant::now(),
+        );
+
+        if format.eq(&0) && checkup.eq(&0) && tests.eq(&0) && clippy.eq(&0) && audit.eq(&0) {
+            ok("Your code can be committed", self.started);
+            status();
+            0
+        } else {
+            ko("Your code contains failures", self.started);
+            status();
+            1
+        }
+    }
+    #[must_use]
+    pub fn run(&mut self, l: &Language) -> i32 {
+        match l {
+            Rust => self.rust(),
+            Go => self.go(),
+            Docker => self.docker(),
+            Make => self.make(),
+            Composer => self.composer(),
+            Cmake => self.cmake(),
+            Unknown => 1,
+        }
     }
 }
 
 fn main() {
-    print!("{}", ansi_escapes::CursorHide);
-    let s = Instant::now();
-    let args: Vec<String> = args().collect();
-    if args.len().eq(&2) && args.get(1).unwrap().eq("init") {
-        init();
-        okay("Your project it's now tracked by zuu");
-        exit(0);
-    }
-
-    if args.len() == 3 && args.contains(&"--watch".to_string()) {
-        if args.get(1).unwrap().eq("--go") || args.get(2).unwrap().eq("--go") {
-            loop {
-                waiting(check_go_bash(s));
-            }
-        } else if args.get(1).unwrap().eq("--rust") || args.get(2).unwrap().eq("--rust") {
-            loop {
-                waiting(check_rust_bash(s));
-            }
-        } else {
-            watch(s);
-        }
-    }
-    if args.contains(&"--watch".to_string()) {
-        watch(s);
-    }
-    if args.len().eq(&2) && args.get(1).unwrap().eq("--rust") {
-        exit(run(
-            "Started",
-            "Rust",
-            "bash",
-            "zuu-rust",
-            "Your code can be committed",
-            "Your code contains failures",
-            s,
-        ));
-    }
-    if args.len().eq(&2) && args.get(1).unwrap().eq("--go") {
-        exit(check_go_bash(s));
-    }
-    let code = check(detect(), s);
-    status();
-    print!("{}", ansi_escapes::CursorShow);
-    exit(code);
+    let mut zuu: Zuu = Zuu::new(Instant::now());
+    let l = zuu.detect();
+    exit(zuu.run(l));
 }
