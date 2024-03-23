@@ -1,13 +1,23 @@
 use crate::helpers::{ko, ok, okay, run};
 use crate::Language::{Cmake, Composer, Docker, Go, Make, Rust, Unknown};
+use chrono::{Datelike, Local, Timelike};
 use std::collections::HashMap;
+use std::env::{args, current_dir};
+use std::fs;
 use std::fs::File;
 use std::io::{read_to_string, Write};
 use std::path::{Path, MAIN_SEPARATOR};
-use std::process::{exit, Command};
+use std::process::exit;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
+use tabled::builder::Builder;
+use tabled::settings::Style;
+
 pub const SUCCESS: &str = "Success";
+pub const FAILURE: &str = "Failure";
+pub const OUTPUT: &str = "zuu";
+pub const STDOUT: &str = "stdout";
+pub const STDERR: &str = "stderr";
 
 pub mod helpers;
 
@@ -26,16 +36,8 @@ pub enum Language {
 /// # Panics
 ///
 #[must_use]
-fn make(started: Instant, cmd: &str) -> i32 {
-    run(
-        "Started",
-        cmd,
-        "make",
-        cmd,
-        format!("make {cmd} executed successfully").as_str(),
-        format!("make {cmd} executed failure").as_str(),
-        started,
-    )
+fn make(cmd: &str) -> i32 {
+    run("make", cmd, output(cmd, true), true)
 }
 
 #[must_use]
@@ -47,17 +49,9 @@ fn read_lines(filename: &str) -> Vec<String> {
         .collect() // gather them together into a vector
 }
 #[must_use]
-fn php(started: Instant, f: &str, t: &str, command: &str) -> i32 {
+fn php(f: &str, command: &str) -> i32 {
     if Path::new(f).exists() {
-        return run(
-            "Started",
-            t,
-            "php",
-            command,
-            "All tests passes",
-            "Test have failures",
-            started,
-        );
+        return run("php", command, output(command, true), true);
     }
     1
 }
@@ -73,44 +67,34 @@ fn spin(b: &str, data: &str) {
     std::io::stdout().flush().expect("a");
 }
 
-fn status() {
-    if Path::new(".git").exists() {
-        println!("\x1b[1;32m    Previous\x1b[0m\n");
-        let _ = Command::new("git")
-            .arg("log")
-            .arg("-1")
-            .arg("--stat")
-            .current_dir(".")
-            .spawn()
-            .unwrap()
-            .wait()
-            .unwrap()
-            .success();
-        println!("\n\x1b[1;32m     Current\x1b[0m\n");
-        let _ = Command::new("git")
-            .arg("diff")
-            .arg("--stat")
-            .current_dir(".")
-            .spawn()
-            .unwrap()
-            .wait()
-            .unwrap()
-            .success();
-        println!();
+fn output(filename: &str, stdout: bool) -> File {
+    if !Path::new(OUTPUT).exists() {
+        fs::create_dir(OUTPUT).expect("Fail to create the output directory");
+        fs::create_dir(format!("{OUTPUT}{MAIN_SEPARATOR}{STDERR}").as_str())
+            .expect("Fail to create the output directory");
+        fs::create_dir(format!("{OUTPUT}{MAIN_SEPARATOR}{STDOUT}").as_str())
+            .expect("Fail to create the output directory");
+    }
+    if stdout {
+        File::create(format!("{OUTPUT}{MAIN_SEPARATOR}{STDOUT}{MAIN_SEPARATOR}{filename}").as_str())
+            .expect("")
+    } else {
+        File::create(format!("{OUTPUT}{MAIN_SEPARATOR}{STDERR}{MAIN_SEPARATOR}{filename}").as_str())
+            .expect("")
     }
 }
 
 pub struct Zuu {
     started: Instant,
-    clippy: String,
+    args: Vec<String>,
 }
 impl Zuu {
+    ///
+    /// # Panics
+    ///
     #[must_use]
-    pub const fn new(x: Instant) -> Self {
-        Self {
-            started: x,
-            clippy: String::new(),
-        }
+    pub fn new(x: Instant, args: Vec<String>) -> Self {
+        Self { started: x, args }
     }
     pub fn waiting(&mut self, code: i32) {
         print!("{}", ansi_escapes::CursorHide);
@@ -187,49 +171,13 @@ impl Zuu {
     ///
     #[must_use]
     pub fn go(&mut self) -> i32 {
-        let verify = run(
-            "Started",
-            "Verify",
-            "go",
-            "mod verify",
-            "Your code can it's verified successfully",
-            "Your project is not valid",
-            Instant::now(),
-        );
-        let build = run(
-            "Started",
-            "Build",
-            "go",
-            "build",
-            "Your code can be built",
-            "Your project cannot be built",
-            Instant::now(),
-        );
-        let tests = run(
-            "Started",
-            "Test",
-            "go",
-            "test -v",
-            "No test failures",
-            "Test have failures",
-            Instant::now(),
-        );
-        let vet = run(
-            "Started",
-            "Test",
-            "go",
-            "vet",
-            "No test failures",
-            "Test have failures",
-            Instant::now(),
-        );
+        let verify = run("go", "mod verify", output("verify", true), true);
+        let build = run("go", "build", output("build", true), true);
+        let tests = run("go", "test -v", output("tests", true), true);
+        let vet = run("go", "vet", output("vet", true), true);
         if vet.eq(&0) && tests.eq(&0) && tests.eq(&0) && verify.eq(&0) && build.eq(&0) {
-            ok("Your code can be committed", self.started);
-            status();
             0
         } else {
-            ko("Your code contains failures", self.started);
-            status();
             1
         }
     }
@@ -241,44 +189,15 @@ impl Zuu {
     ///
     #[must_use]
     pub fn composer(&mut self) -> i32 {
-        assert!(run(
-            "Started",
-            "Install",
-            "composer",
-            "install",
-            "Project can be installed",
-            "Project install failed",
-            self.started
-        )
-        .eq(&0));
-        let audit = run(
-            "Started",
-            "Audit",
-            "composer",
-            "audit",
-            "Audit no detect error",
-            "Audit detect errors",
-            self.started,
-        );
-        let diagnose = run(
-            "Started",
-            "Diagnose",
-            "composer",
-            "diagnose",
-            "Audit no detect error",
-            "Diagnose detect errors",
-            self.started,
-        );
+        assert!(run("composer", "install", output("install", true), true).eq(&0));
+        let audit = run("composer", "audit", output("audit", true), true);
+        let diagnose = run("composer", "diagnose", output("diagnose", true), true);
         let tests = php(
-            self.started,
             "phpunit.xml",
-            "Phpunit",
             format!("vendor{MAIN_SEPARATOR}bin{MAIN_SEPARATOR}phpunit").as_str(),
         );
         let checkup = php(
-            self.started,
             "phpstan.neon",
-            "Phpstan",
             format!("vendor{MAIN_SEPARATOR}bin{MAIN_SEPARATOR}phpstan").as_str(),
         );
 
@@ -289,36 +208,9 @@ impl Zuu {
     }
     #[must_use]
     pub fn cmake(&mut self) -> i32 {
-        if run(
-            "Started",
-            "Cmake",
-            "cmake",
-            ".",
-            "Makefile created successfully",
-            "Failed to create Makefile",
-            self.started,
-        )
-        .eq(&0)
-            && run(
-                "Started",
-                "Make",
-                "make",
-                "",
-                "Project built successfully",
-                "Failed to built the project",
-                self.started,
-            )
-            .eq(&0)
-            && run(
-                "Started",
-                "Install",
-                "make",
-                "install",
-                "Project installed successfully",
-                "Failed to install the project",
-                self.started,
-            )
-            .eq(&0)
+        if run("cmake", ".", output("cmake", true), true).eq(&0)
+            && run("make", "", output("make", true), true).eq(&0)
+            && run("make", "install", output("install", true), true).eq(&0)
         {
             return 0;
         }
@@ -326,24 +218,8 @@ impl Zuu {
     }
     #[must_use]
     pub fn docker(&mut self) -> i32 {
-        let x = run(
-            "Started",
-            "Docker",
-            "docker-compose",
-            "up",
-            "Your code can be committed",
-            "Your code contains failures",
-            self.started,
-        );
-        let _ = run(
-            "Closing",
-            "Docker",
-            "docker-compose",
-            "down",
-            "Your code can be committed",
-            "Your code contains failures",
-            self.started,
-        );
+        let x = run("docker-compose", "up", output("docker", true), true);
+        let _ = run("docker-compose", "down", output("docker-down", true), true);
 
         match x {
             -1 => 0,
@@ -397,84 +273,255 @@ impl Zuu {
             }
         }
         for x in &cmd {
-            assert!(make(self.started, x.as_str()).eq(&0));
+            assert!(make(x.as_str()).eq(&0));
         }
         0
     }
+
+    pub fn date(&mut self) -> String {
+        let t = Local::now();
+        format!(
+            "{}-{}-{} {}:{}:{}",
+            t.year(),
+            t.month(),
+            t.day(),
+            t.hour(),
+            t.minute(),
+            t.second()
+        )
+    }
+
+    pub fn filename(&mut self, f: &str, stdout: bool) -> String {
+        if stdout {
+            format!("{OUTPUT}{MAIN_SEPARATOR}{STDOUT}{MAIN_SEPARATOR}{f}")
+        } else {
+            format!("{OUTPUT}{MAIN_SEPARATOR}{STDERR}{MAIN_SEPARATOR}{f}")
+        }
+    }
     #[must_use]
     pub fn rust(&mut self) -> i32 {
-        let audit = run(
-            "Started",
-            "Audit",
-            "cargo",
-            "audit",
-            "Audit no detect errors",
-            "Audit detect errors",
-            Instant::now(),
-        );
+        let verbose = self.args.contains(&"-v".to_string());
+        let mut app = Builder::new();
+        let mut builder = Builder::new();
+        let mut clippy_table = Builder::new();
+        let mut test_table = Builder::new();
+        let mut audit_table = Builder::new();
+        let mut check_table = Builder::new();
+        let mut format_table = Builder::new();
+        let prj = current_dir().expect("");
+        let project = prj.to_str().expect("").split(MAIN_SEPARATOR).last();
+        let description =
+            read_to_string(File::open(".git/description").expect("failed to open file"))
+                .expect("failed to parse file");
+        app.push_record([project.expect(""), description.as_str()]);
+        builder.push_record(["Task", "Status", "Datetime", "Help", "Output File"]);
 
+        let audit = run("cargo", "audit", output("audit", true), true);
+
+        if audit.eq(&0) {
+            builder.push_record([
+                "Audit",
+                SUCCESS,
+                self.date().as_str(),
+                "",
+                self.filename("audit", true).as_str(),
+            ]);
+        } else {
+            builder.push_record([
+                "Audit",
+                FAILURE,
+                self.date().as_str(),
+                "cargo audit fix",
+                self.filename("audit", true).as_str(),
+            ]);
+        }
+        if verbose {
+            audit_table.push_record(["Audit"]);
+            let c = read_to_string(
+                File::open(self.filename("audit", true).as_str()).expect("failed to open file"),
+            )
+            .expect("failed to parse file");
+            audit_table.push_record([c.as_str()]);
+            println!(
+                "\n{}",
+                audit_table
+                    .build()
+                    .with(Style::modern_rounded())
+                    .to_string()
+            );
+        }
         let clippy = run(
-            "Started",
-            "Clippy",
             "cargo",
-            "clippy -- -F keyword_idents -F warnings
-                     -F let-underscore -F rust-2018-compatibility
-                     -F rust-2018-idioms  -F rust-2021-compatibility
-                     -F future-incompatible -F unused
-                     -F unused_crate_dependencies
-                     -F unused_extern_crates
-                     -D unused_macro_rules -F unused_results
-                     -F unused_qualifications -F nonstandard-style
-                     -F macro_use_extern_crate
-                     -F absolute_paths_not_starting_with_crate
-                     -F ambiguous_glob_imports -F clippy::all
-                     -F clippy::perf -F clippy::pedantic
-                     -F clippy::style -F clippy::suspicious
-                     -F clippy::correctness
-                     -F clippy::nursery
-                     -F clippy::complexity -F clippy::cargo",
-            "Your code is correct",
-            "Your code is incorrect",
-            Instant::now(),
+            "clippy --  -F keyword_idents
+                        -F warnings
+                        -F let-underscore 
+                        -F rust-2018-compatibility
+                        -F rust-2018-idioms 
+                        -F rust-2021-compatibility
+                        -F future-incompatible
+                        -F unused
+                        -F unused_crate_dependencies
+                        -F unused_extern_crates
+                        -F unused_macro_rules 
+                        -F unused_results
+                        -F unused_qualifications 
+                        -F nonstandard-style
+                        -F macro_use_extern_crate 
+                        -F absolute_paths_not_starting_with_crate
+                        -F ambiguous_glob_imports 
+                        -F clippy::all
+                        -F clippy::perf 
+                        -F clippy::pedantic
+                        -F clippy::style 
+                        -F clippy::suspicious
+                        -F clippy::correctness
+                        -F clippy::nursery
+                        -F clippy::complexity 
+                        -D clippy::cargo",
+            output("clippy", false),
+            false,
         );
         if clippy.eq(&0) {
-            self.clippy.push_str(SUCCESS);
+            builder.push_record([
+                "Clippy",
+                SUCCESS,
+                self.date().as_str(),
+                "",
+                self.filename("clippy", false).as_str(),
+            ]);
+        } else {
+            builder.push_record([
+                "Clippy",
+                FAILURE,
+                self.date().as_str(),
+                "cargo fix",
+                self.filename("clippy", false).as_str(),
+            ]);
         }
-        let tests = run(
-            "Started",
-            "Tests",
-            "cargo",
-            "test --no-fail-fast",
-            "No test failures",
-            "Test have failures",
-            Instant::now(),
-        );
-        let checkup = run(
-            "Started",
-            "Check",
-            "cargo",
-            "check",
-            "Your code is correct",
-            "Your code is incorrect",
-            Instant::now(),
-        );
-        let format = run(
-            "Started",
-            "Format",
-            "cargo",
-            "fmt --check",
-            "Your code is formatted correctness",
-            "Your project is bad formatted",
-            Instant::now(),
-        );
+        if verbose {
+            clippy_table.push_record(["Clippy"]);
+            let c = read_to_string(
+                File::open(self.filename("clippy", false).as_str()).expect("failed to open file"),
+            )
+            .expect("failed to parse file");
+            clippy_table.push_record([c.as_str()]);
+            println!(
+                "\n{}",
+                clippy_table
+                    .build()
+                    .with(Style::modern_rounded())
+                    .to_string()
+            );
+        }
+        let tests = run("cargo", "test  --no-fail-fast", output("test", true), true);
+        if tests.eq(&0) {
+            builder.push_record([
+                "Test",
+                SUCCESS,
+                self.date().as_str(),
+                "",
+                self.filename("test", true).as_str(),
+            ]);
+        } else {
+            builder.push_record([
+                "Test",
+                FAILURE,
+                self.date().as_str(),
+                "cargo test",
+                self.filename("test", true).as_str(),
+            ]);
+        }
+        if verbose {
+            let c = read_to_string(
+                File::open(self.filename("test", true).as_str()).expect("failed to open file"),
+            )
+            .expect("failed to parse file");
+            test_table.push_record(["Test"]);
+            test_table.push_record([c.as_str()]);
+            println!(
+                "\n{}",
+                test_table.build().with(Style::modern_rounded()).to_string()
+            );
+        }
+        let checkup = run("cargo", "check", output("check", false), false);
 
+        if checkup.eq(&0) {
+            builder.push_record([
+                "Check",
+                SUCCESS,
+                self.date().as_str(),
+                "",
+                self.filename("check", false).as_str(),
+            ]);
+        } else {
+            builder.push_record([
+                "Check",
+                FAILURE,
+                self.date().as_str(),
+                "cargo fix",
+                self.filename("check", false).as_str(),
+            ]);
+        }
+        if verbose {
+            check_table.push_record(["Check"]);
+            let c = read_to_string(
+                File::open(self.filename("check", false).as_str()).expect("failed to open file"),
+            )
+            .expect("failed to parse file");
+            check_table.push_record([c.as_str()]);
+            println!(
+                "\n{}",
+                check_table
+                    .build()
+                    .with(Style::modern_rounded())
+                    .to_string()
+            );
+        }
+
+        let format = run(
+            "cargo",
+            "fmt -- --color never --check",
+            output("format", true),
+            true,
+                    );
+
+        if format.eq(&0) {
+            builder.push_record([
+                "Format",
+                SUCCESS,
+                self.date().as_str(),
+                "",
+                self.filename("format", true).as_str(),
+            ]);
+        } else {
+            builder.push_record([
+                "Format",
+                FAILURE,
+                self.date().as_str(),
+                "cargo fmt",
+                self.filename("format", true).as_str(),
+            ]);
+        }
+        if verbose {
+            format_table.push_record(["Format"]);
+            let c = read_to_string(
+                File::open(self.filename("format", true).as_str()).expect("failed to open file"),
+            )
+            .expect("failed to parse file");
+            format_table.push_record([c.as_str()]);
+            println!(
+                "\n{}\n",
+                format_table
+                    .build()
+                    .with(Style::modern_rounded())
+                    .to_string()
+            );
+        }
+        let table_status = builder.build().with(Style::modern_rounded()).to_string();
+        println!("\n{table_status}\n");
         if format.eq(&0) && checkup.eq(&0) && tests.eq(&0) && clippy.eq(&0) && audit.eq(&0) {
-            ok("Your code can be committed", self.started);
-            status();
             0
         } else {
-            ko("Your code contains failures", self.started);
-            status();
             1
         }
     }
@@ -493,7 +540,8 @@ impl Zuu {
 }
 
 fn main() {
-    let mut zuu: Zuu = Zuu::new(Instant::now());
+    let args: Vec<String> = args().collect();
+    let mut zuu: Zuu = Zuu::new(Instant::now(), args);
     let l = zuu.detect();
     exit(zuu.run(l));
 }

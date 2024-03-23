@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::process::Command;
 use std::time::Instant;
 pub fn title(eta: &str, task: &str) {
@@ -10,25 +11,39 @@ pub fn title(eta: &str, task: &str) {
 /// if the program is not founded or command error
 ///
 #[must_use]
-pub fn run(eta: &str, task: &str, program: &str, args: &str, s: &str, e: &str, x: Instant) -> i32 {
-    title(eta, task);
-    if Command::new(program)
-        .args(args.split_whitespace())
-        .current_dir(".")
-        .spawn()
-        .expect("")
-        .wait()
-        .unwrap()
-        .success()
-    {
-        ok(s, x);
-        0
+pub fn run(program: &str, args: &str, f: File, stdout: bool) -> i32 {
+    if stdout {
+        if Command::new(program)
+            .args(args.split_whitespace())
+            .current_dir(".")
+            .stdout(f)
+            .spawn()
+            .expect("")
+            .wait()
+            .unwrap()
+            .success()
+        {
+            0
+        } else {
+            1
+        }
     } else {
-        ko(e, x);
-        1
+        if Command::new(program)
+            .args(args.split_whitespace())
+            .current_dir(".")
+            .stderr(f)
+            .spawn()
+            .expect("")
+            .wait()
+            .unwrap()
+            .success()
+        {
+            0
+        } else {
+            1
+        }
     }
 }
-
 pub fn msg(text: &str) {
     println!("\n{text}");
 }
