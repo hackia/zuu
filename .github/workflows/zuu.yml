@@ -16,7 +16,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: deps
-      run:  git clone https://github.com/otechdo/zuu app && cd app && cargo install --path .
+      run:  git clone https://github.com/otechdo/zuu zuu && cd zuu && cargo install --path .
     - name: zuu
       run: git clone https://github.com/otechdo/zuu app && cd app && zuu
     
