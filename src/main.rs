@@ -275,34 +275,6 @@ fn check_go(started: Instant) -> i32 {
     }
 }
 
-fn check_go_bash(s: Instant) -> i32 {
-    print!("{}", ansi_escapes::ClearScreen);
-    let x = run(
-        "Started",
-        "Go",
-        "bash",
-        "zuu-go",
-        "Your code can be committed",
-        "Your code contains failures",
-        s,
-    );
-    status();
-    x
-}
-fn check_rust_bash(s: Instant) -> i32 {
-    print!("{}", ansi_escapes::ClearScreen);
-    let x = run(
-        "Started",
-        "Rust",
-        "bash",
-        "zuu-rust",
-        "Your code can be committed",
-        "Your code contains failures",
-        s,
-    );
-    status();
-    x
-}
 fn docker(s: Instant) -> i32 {
     let x = run(
         "Started",
@@ -545,36 +517,8 @@ fn main() {
         okay("Your project it's now tracked by zuu");
         exit(0);
     }
-
-    if args.len() == 3 && args.contains(&"--watch".to_string()) {
-        if args.get(1).unwrap().eq("--go") || args.get(2).unwrap().eq("--go") {
-            loop {
-                waiting(check_go_bash(s));
-            }
-        } else if args.get(1).unwrap().eq("--rust") || args.get(2).unwrap().eq("--rust") {
-            loop {
-                waiting(check_rust_bash(s));
-            }
-        } else {
-            watch(s);
-        }
-    }
     if args.contains(&"--watch".to_string()) {
         watch(s);
-    }
-    if args.len().eq(&2) && args.get(1).unwrap().eq("--rust") {
-        exit(run(
-            "Started",
-            "Rust",
-            "bash",
-            "zuu-rust",
-            "Your code can be committed",
-            "Your code contains failures",
-            s,
-        ));
-    }
-    if args.len().eq(&2) && args.get(1).unwrap().eq("--go") {
-        exit(check_go_bash(s));
     }
     let code = check(detect(), s);
     status();
