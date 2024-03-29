@@ -1,4 +1,4 @@
-use fs::remove_file;
+se fs::remove_file;
 use std::fs;
 use std::process::{exit, ExitCode};
 const ZUU: &str = "/usr/bin/zuu";

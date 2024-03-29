@@ -127,6 +127,33 @@ fn check_cmake(started: Instant) -> i32 {
 }
 
 fn check_rust(started: Instant) -> i32 {
+    let project = run(
+        "Started",
+        "Project",
+        "cargo",
+        "verify-project",
+        "verify-project no detect errors",
+        "verify-project detect errors",
+        Instant::now(),
+    );
+    let bench = run(
+        "Started",
+        "Project",
+        "cargo",
+        "bench --no-fail-fast --all-targets --message-format human",
+        "bench no detect errors",
+        "bench detect errors",
+        Instant::now(),
+    );
+    let build = run(
+        "Started",
+        "Build",
+        "cargo",
+        "build --all-targets --release -j 4 --future-incompat-report",
+        "Build no detect errors",
+        "Build detect errors",
+        Instant::now(),
+    );
     let audit = run(
         "Started",
         "Audit",
@@ -140,7 +167,7 @@ fn check_rust(started: Instant) -> i32 {
     let clippy = run("Started",
                      "Clippy",
                      "cargo",
-                     "clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates  -D unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -F clippy::cargo",
+                     "clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates -F unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -F clippy::cargo",
                      "Your code is correct",
                      "Your code is incorrect",
                      Instant::now());
@@ -148,7 +175,7 @@ fn check_rust(started: Instant) -> i32 {
         "Started",
         "Tests",
         "cargo",
-        "test --no-fail-fast",
+        "test --all-targets --all-features --release -j 4 --no-fail-fast",
         "No test failures",
         "Test have failures",
         Instant::now(),
@@ -157,7 +184,7 @@ fn check_rust(started: Instant) -> i32 {
         "Started",
         "Check",
         "cargo",
-        "check",
+        "check --all-targets --release --message-format human -j 4",
         "Your code is correct",
         "Your code is incorrect",
         Instant::now(),
@@ -171,8 +198,25 @@ fn check_rust(started: Instant) -> i32 {
         "Your project is bad formatted",
         Instant::now(),
     );
-
-    if format.eq(&0) && checkup.eq(&0) && tests.eq(&0) && clippy.eq(&0) && audit.eq(&0) {
+    let install = run(
+        "Started",
+        "Install",
+        "cargo",
+        "install --path . --no-track --bins --examples --all-features -j 4 --force",
+        "Your project can be installed",
+        "Your project cannot be installed",
+        Instant::now(),
+    );
+    if format.eq(&0)
+        && checkup.eq(&0)
+        && tests.eq(&0)
+        && clippy.eq(&0)
+        && audit.eq(&0)
+        && project.eq(&0)
+        && bench.eq(&0)
+        && build.eq(&0)
+        && install.eq(&0)
+    {
         ok("Your code can be committed", started);
         status();
         0
