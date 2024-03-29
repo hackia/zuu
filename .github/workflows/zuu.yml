@@ -12,21 +12,12 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
-        toolchain:
-          - stable
-          - beta
-          - nightly
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
     - name: deps
-      run: cargo install cargo-audit zuu
+      run:  git clone https://github.com/otechdo/zuu app && cd app && cargo install --path .
     - name: zuu
-      shell: bash
-    - run: |
-    	if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-			git clone https://github.com/otechdo/zuu app && cd .\app &&  git checkout "${GITHUB_REF##*/}"  && zuu
-		else
-			git clone https://github.com/otechdo/zuu app && cd app &&  git checkout "${GITHUB_REF##*/}"  && zuu
-		fi
+      run: git clone https://github.com/otechdo/zuu app && cd app && zuu
     
+
