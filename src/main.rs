@@ -140,7 +140,7 @@ fn check_rust(started: Instant) -> i32 {
         "Started",
         "Project",
         "cargo",
-        "bench --no-fail-fast --all-targets --message-format human",
+        "bench --no-fail-fast --all-targets --message-format human -j 4",
         "bench no detect errors",
         "bench detect errors",
         Instant::now(),
@@ -167,7 +167,7 @@ fn check_rust(started: Instant) -> i32 {
     let clippy = run("Started",
                      "Clippy",
                      "cargo",
-                     "clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates -F unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -F clippy::cargo",
+                     "clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates -F unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -D clippy::cargo",
                      "Your code is correct",
                      "Your code is incorrect",
                      Instant::now());
