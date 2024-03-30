@@ -198,15 +198,7 @@ fn check_rust(started: Instant) -> i32 {
         "Your project is bad formatted",
         Instant::now(),
     );
-    let install = run(
-        "Started",
-        "Install",
-        "cargo",
-        "install --path . --no-track --bins --examples --all-features -j 4 --force",
-        "Your project can be installed",
-        "Your project cannot be installed",
-        Instant::now(),
-    );
+
     if format.eq(&0)
         && checkup.eq(&0)
         && tests.eq(&0)
@@ -215,7 +207,6 @@ fn check_rust(started: Instant) -> i32 {
         && project.eq(&0)
         && bench.eq(&0)
         && build.eq(&0)
-        && install.eq(&0)
     {
         ok("Your code can be committed", started);
         status();
