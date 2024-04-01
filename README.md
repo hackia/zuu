@@ -14,10 +14,10 @@
   - [@usage](https://github.com/otechdo/zuu/wiki/usage)
   - [@discord](https://discord.gg/jWHjkpRJPw)
 
-![command-settings-prefs](https://github.com/otechdo/zuu/blob/develop/img/gnome-builder-command.png)
+![command-settings-prefs](https://raw.githubusercontent.com/otechdo/zuu/main/img/gnome-builder-command.png)
 
-![Create command](https://github.com/otechdo/zuu/blob/develop/img/gnome-builder-command.png)
+![Create command](https://raw.githubusercontent.com/otechdo/zuu/main/img/gnome-builder-command.png)
 
-![command-settings](https://github.com/otechdo/zuu/blob/develop/img/gnome-builder-zuu-comand-settings.png)
+![command-settings](https://raw.githubusercontent.com/otechdo/zuu/main/img/gnome-builder-zuu-comand-settings.png)
 
-![command-watch-zuu](https://github.com/otechdo/zuu/blob/develop/img/cargo-watch-zuu.png)
+![command-watch-zuu](https://raw.githubusercontent.com/otechdo/zuu/main/img/cargo-watch-zuu.png)
