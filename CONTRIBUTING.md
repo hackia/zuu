@@ -1,1 +1,3 @@
-# How to contibutes 
+- [Join the teams](https://discord.gg/jWHjkpRJPw)
+- [Bugs report](https://github.com/otechdo/zuu/issues)
+- [Purpose features](https://github.com/otechdo/zuu/discussions)
