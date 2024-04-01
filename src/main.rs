@@ -93,8 +93,9 @@ fn check_rust() -> i32 {
             "sh",
             &[
                 "-c",
-                "cargo clean && cargo build --all-targets --release -j 4 --future-incompat-report && cargo verify-project && cargo bench --no-fail-fast --all-targets --message-format human -j 4 && cargo clean && cargo clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates -F unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -D clippy::cargo && cargo test --all-targets --all-features --release -j 4 --no-fail-fast && cargo check --all-targets --release --message-format human -j 4 && cargo fmt --check && exit 0 || exit 1"]),
+                "cargo build --all-targets --release -j 4 --future-incompat-report && cargo verify-project && cargo bench --no-fail-fast --all-targets --message-format human -j 4 && cargo clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms  -F rust-2021-compatibility -F future-incompatible -F unused -F unused_crate_dependencies -F unused_extern_crates -F unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::complexity -D clippy::cargo && cargo test --all-targets --all-features --release -j 4 --no-fail-fast && cargo check --all-targets --release --message-format human -j 4 && cargo fmt --check  || exit 1"]),
     "zuu detect failure");
+
     okay("Your code can be committed");
     0
 }
