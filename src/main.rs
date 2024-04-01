@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::read_to_string;
 use std::path::Path;
-use std::process::exit;
 pub mod helpers;
+use std::process::{exit, ExitCode};
 
 enum Language {
     Rust,
@@ -166,6 +166,6 @@ fn all() -> HashMap<String, &'static Language> {
     all
 }
 
-fn main() {
-    exit(check(detect()));
+fn main() -> ExitCode {
+    exit(check(detect()))
 }
