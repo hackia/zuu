@@ -13,3 +13,13 @@
   - [@pulse](https://github.com/otechdo/zuu/pulse)
   - [@usage](https://github.com/otechdo/zuu/wiki/usage)
   - [@discord](https://discord.gg/jWHjkpRJPw)
+
+![command-settings-prefs](img/gnome-builder-prefs.png)
+
+![command-settings](img/gnome-builder-zuu-comand-settings.png)
+
+![Create command](/home/otechdo/Apps/zuu/img/gnome-builder-command.png)
+
+![command-settings](img/zuu-command-demo.gif)
+
+

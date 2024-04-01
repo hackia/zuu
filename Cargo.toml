@@ -2,7 +2,7 @@
 name = "zuu"
 version = "15.1.0"
 edition = "2021"
-license = "GPL-2.0-or-later"
+license = "GPL-3.0-or-later"
 keywords = ["code", "quality", "production", "certified","git"]
 categories = ["development-tools","development-tools::testing"]
 readme = "README.md"
@@ -11,4 +11,3 @@ repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
 
 [dependencies]
-ansi-escapes = "=0.1.1"
