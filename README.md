@@ -16,10 +16,8 @@
 
 ![command-settings-prefs](img/gnome-builder-prefs.png)
 
-![command-settings](img/gnome-builder-zuu-comand-settings.png)
-
 ![Create command](img/gnome-builder-command.png)
 
-![command-settings](img/zuu-command-demo.gif)
+![command-settings](img/gnome-builder-zuu-comand-settings.png)
 
 
