@@ -18,7 +18,7 @@
 
 ![command-settings](img/gnome-builder-zuu-comand-settings.png)
 
-![Create command](/home/otechdo/Apps/zuu/img/gnome-builder-command.png)
+![Create command](img/gnome-builder-command.png)
 
 ![command-settings](img/zuu-command-demo.gif)
 
