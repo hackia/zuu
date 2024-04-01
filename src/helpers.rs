@@ -47,18 +47,3 @@ pub fn ko(text: &str, started: Instant) {
         started.elapsed().as_secs()
     );
 }
-
-///
-/// # Panics
-///
-#[must_use]
-pub fn project() -> String {
-    assert!(exec(
-        "sh",
-        &[
-            "-c",
-            "cat Cargo.toml | grep name | cut -d '\"'  -f 2 > app.txt"
-        ]
-    ));
-    std::fs::read_to_string("app.txt").expect("")
-}
