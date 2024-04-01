@@ -20,4 +20,4 @@
 
 ![command-settings](https://github.com/otechdo/zuu/blob/develop/img/gnome-builder-zuu-comand-settings.png)
 
-![command-settings](https://github.com/otechdo/zuu/blob/develop/img/cargo-watch-zuu.png)
+![command-watch-zuu](https://github.com/otechdo/zuu/blob/develop/img/cargo-watch-zuu.png)
