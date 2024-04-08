@@ -1,9 +1,7 @@
 use crate::helpers::exec;
 use crate::helpers::okay;
-use crate::Language::{Cmake, Composer, Go, Make, Rust, Unknown};
+use crate::Language::{Cmake, Composer, Go, Rust, Unknown};
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::read_to_string;
 use std::path::Path;
 pub mod helpers;
 use std::process::{exit, ExitCode};
@@ -11,65 +9,9 @@ use std::process::{exit, ExitCode};
 enum Language {
     Rust,
     Go,
-    Make,
     Composer,
     Cmake,
     Unknown,
-}
-
-fn read_lines(filename: &str) -> Vec<String> {
-    read_to_string(File::open(filename).expect("failed to found"))
-        .unwrap() // panic on possible file-reading errors
-        .lines() // split the string into an iterator of string slices
-        .map(String::from) // make each slice into a string
-        .collect() // gather them together into a vector
-}
-
-fn check_make() -> i32 {
-    let mut cmd: Vec<String> = Vec::new();
-    for x in &read_lines("Makefile") {
-        if x.starts_with("all") {
-            cmd.push("all".to_string());
-        }
-        if x.starts_with("install") {
-            cmd.push("install".to_string());
-        }
-        if x.starts_with("dist") {
-            cmd.push("dist".to_string());
-        }
-        if x.starts_with("clean") {
-            cmd.push("clean".to_string());
-        }
-
-        if x.starts_with("uninstall") {
-            cmd.push("uninstall".to_string());
-        }
-        if x.starts_with("install") {
-            cmd.push("install".to_string());
-        }
-
-        if x.starts_with("install-strip") {
-            cmd.push("install-strip".to_string());
-        }
-        if x.starts_with("distclean") {
-            cmd.push("distclean".to_string());
-        }
-
-        if x.starts_with("install") {
-            cmd.push("install".to_string());
-        }
-
-        if x.starts_with("maintainer-clean") {
-            cmd.push("maintainer-clean".to_string());
-        }
-        if x.starts_with("mostlyclean") {
-            cmd.push("mostlyclean".to_string());
-        }
-    }
-    for x in &cmd {
-        assert!(exec("sh", &["-c", format!("make {x}").as_str()]));
-    }
-    0
 }
 
 ///
@@ -116,7 +58,6 @@ fn check(language: &Language) -> i32 {
     match language {
         Rust => check_rust(),
         Go => check_go(),
-        Make => check_make(),
         Composer => check_composer(),
         Cmake => check_cmake(),
         Unknown => {
@@ -158,7 +99,6 @@ fn all() -> HashMap<String, &'static Language> {
     let mut all: HashMap<String, &Language> = HashMap::new();
     assert!(all.insert(String::from("Cargo.toml"), &Rust).is_none());
     assert!(all.insert(String::from("go.mod"), &Go).is_none());
-    assert!(all.insert(String::from("Makefile"), &Make).is_none());
     assert!(all
         .insert(String::from("composer.json"), &Composer)
         .is_none());
