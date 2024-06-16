@@ -1,9 +1,9 @@
 [package]
 name = "zuu"
-version = "16.1.0"
+version = "17.0.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
-keywords = ["code", "quality", "production", "certified","git"]
+keywords = ["code", "quality", "production", "certified","rust"]
 categories = ["development-tools","development-tools::testing"]
 readme = "README.md"
 authors = ["Willy Micieli"]

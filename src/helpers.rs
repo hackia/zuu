@@ -1,23 +1,9 @@
-use std::process::Command;
 use std::time::Instant;
 
 pub fn title(eta: &str, task: &str) {
     println!("\n\x1b[1;32m     {eta}\x1b[0m {task}");
 }
 
-///
-/// # Panics
-///
-#[must_use]
-pub fn exec(cmd: &str, args: &[&str]) -> bool {
-    Command::new(cmd)
-        .args(args)
-        .spawn()
-        .unwrap()
-        .wait()
-        .expect("failed to execute cmd")
-        .success()
-}
 ///
 /// # Panics
 ///
