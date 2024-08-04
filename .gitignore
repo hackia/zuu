@@ -13,8 +13,10 @@ Cargo.lock
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 .idea
-beta
-stable
-zuu
-nightly
-app.txt
+/beta
+/stable
+/zuu
+/nightly
+/.vscode
+/*.html
+/zuu_*
