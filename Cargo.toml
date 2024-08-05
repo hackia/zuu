@@ -2,7 +2,7 @@
 name = "zuu"
 version = "19.0.0"
 edition = "2021"
-license = "GPL-3.0-or-later"
+license = "GPL-3.0"
 keywords = ["code", "quality", "production", "certified", "rust"]
 categories = ["development-tools", "development-tools::testing"]
 readme = "README.md"
