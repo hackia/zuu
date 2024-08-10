@@ -1,11 +1,14 @@
 [package]
 name = "zuu"
-version = "19.0.1"
+version = "19.1.0"
 edition = "2021"
-license = "GPL-3.0"
+license = "MIT"
 keywords = ["code", "quality", "production", "certified", "rust"]
 categories = ["development-tools", "development-tools::testing"]
 readme = "README.md"
 authors = ["Willy Micieli"]
 repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
+
+[dependencies]
+indicatif = "0.17.8"
