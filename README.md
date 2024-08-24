@@ -63,6 +63,7 @@ for prime time.
 ## TOOLS REQUIRED
 
 - `cargo`
+- `cargo-outdated`
 - `cargo-clippy`
 - `cargo-audit`
 - `cargo-auditable`
@@ -111,13 +112,13 @@ not to hinder your progress.
 ## EXAMPLES
 
 ```bash
-zuu -m strict
+zuu -m ultra
 ```
 
 ## WATCH MODE
 
 ```bash
-cargo-watch -- zuu -m scrict
+cargo-watch -- zuu -m ultra
 ```
 
 ## LINKS
