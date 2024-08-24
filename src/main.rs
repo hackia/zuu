@@ -26,7 +26,7 @@ use std::io::{Error, ErrorKind};
 use std::process::{Command, ExitCode};
 
 #[doc = "Specific task for library"]
-const RUST_LIBRARY_TASKS: [&str; 4] = ["doc", "test --doc", "clippy -- -D clippy::missing_docs -D clippy::missing_errors_doc -D clippy::doc_markdown -D clippy::missing_panics_doc", "spellcheck"];
+const RUST_LIBRARY_TASKS: [&str; 4] = ["doc --no-deps", "test --doc", "clippy -- -D clippy::missing_docs -D clippy::missing_errors_doc -D clippy::doc_markdown -D clippy::missing_panics_doc", "spellcheck"];
 #[doc = "The highest level of code quality and strictness"]
 const RUST_ULTRA_TASKS: [&str; 8] = [
     "verify-project",
