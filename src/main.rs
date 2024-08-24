@@ -19,9 +19,13 @@
 //!
 //! The specific lints and checks performed depend on the chosen mode (ultra, high, medium, or low).
 //!
-use clap::{Arg, Command as Cmd};
-use std::process::{Command, ExitCode};
 
+use clap::{Arg, Command as Cmd};
+use std::fs::read_to_string;
+use std::io::{Error, ErrorKind};
+use std::process::{Command, ExitCode};
+#[doc = "Specific task for library"]
+const RUST_LIBRARY_TASKS: [&str; 4] = ["doc", "test --doc", "clippy -- -D clippy::missing_docs -D clippy::missing_errors_doc -D clippy::doc_markdown -D clippy::missing_panics_doc", "spellcheck"];
 #[doc = "The highest level of code quality and strictness"]
 const RUST_ULTRA_TASKS: [&str; 8] = [
     "verify-project",
@@ -765,16 +769,34 @@ const RUST_LOW_TASKS: [&str; 8] = [
     "fmt --check",
     "outdated",
 ];
+
+#[doc = "run a single task checkup"]
+fn check(task: &str) -> Result<(), Error> {
+    let x: Vec<&str> = task.split_whitespace().collect();
+    if let Ok(mut child) = Command::new("cargo").args(x).current_dir(".").spawn() {
+        if let Ok(code) = child.wait() {
+            if code.success().eq(&false) {
+                return Err(Error::new(ErrorKind::InvalidData, "cannot commit"));
+            }
+        }
+    }
+    Ok(())
+}
+
 #[doc = "Check all tasks by mode"]
 fn zuu(tasks: &[&str; 8]) -> ExitCode {
-    for task in tasks {
-        let x: Vec<&str> = task.split_whitespace().collect();
-        if let Ok(mut child) = Command::new("cargo").args(x).current_dir(".").spawn() {
-            if let Ok(code) = child.wait() {
-                if code.success().eq(&false) {
+    if let Ok(content) = read_to_string("Cargo.toml") {
+        if content.contains("library") {
+            for task in RUST_LIBRARY_TASKS {
+                if check(task).is_err() {
                     return ExitCode::FAILURE;
                 }
             }
+        }
+    }
+    for task in tasks {
+        if check(task).is_err() {
+            return ExitCode::FAILURE;
         }
     }
     ExitCode::SUCCESS
