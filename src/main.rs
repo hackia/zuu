@@ -1,166 +1,804 @@
-use indicatif::{ProgressBar, ProgressStyle};
-use std::fs::{create_dir_all, read_to_string, File};
-use std::io::{stdout, ErrorKind, Write};
-use std::path::{Path, MAIN_SEPARATOR_STR};
-use std::time::Duration;
-use std::{io::Error, process::Command};
+//! # Zuu
+//!
+//! is a command-line tool written in Rust that automates the process of checking and linting your Rust project's code.
+//!
+//! It likely stands for "Zero Unnecessary Untidiness" based on the comment "Code can be committed" displayed upon successful completion.
+//!
+//! ## Features
+//!
+//! * Attempts to execute each command using cargo
+//! * If a command fails, it gracefully terminates the process and displays an error message
+//!
+//! ## Purpose
+//!
+//! * Code Quality Assurance: zuu helps maintain high code quality standards by automating the execution of various Rust checks and lints.
+//! * Streamlined Development Workflow: It provides a convenient way to run multiple checks with a single command and visualize progress through a progress bar.
+//! * Error Handling: It includes basic error handling to report issues during task execution.
+//!
+//! ## Notes
+//!
+//! The specific lints and checks performed depend on the chosen mode (ultra, high, medium, or low).
+//!
+//! It assumes a Unix-like environment due to the use of ANSI escape codes for terminal control.
+//!
+use clap::{Arg, Command as Cmd};
+use std::process::{Command, ExitCode};
 
-const ERROR_VERIFY_FILE: &str = "verify";
-const ERROR_CHECK_FILE: &str = "check";
-const ERROR_DENY_FILE: &str = "deny";
-const ERROR_AUDIT_FILE: &str = "audit";
-const ERROR_CLIPPY_FILE: &str = "clippy";
-const ERROR_TEST_FILE: &str = "test";
-const ERROR_FMT_FILE: &str = "format";
-
-const ZUU_TEMPLATE: &str = "{spinner} [{bar:50.white}] {msg}";
-
-const RUST_TASKS: [&str;7] = [
+#[doc = "The highest level of code quality and strictness"]
+const RUST_ULTRA_TASKS: [&str; 8] = [
     "verify-project",
     "check --all-targets --profile=test",
     "deny check",
     "audit",
-    "clippy -- -F keyword_idents -F warnings -F let-underscore -F rust-2018-compatibility -F rust-2018-idioms -F rust-2021-compatibility -F unused -F unused_crate_dependencies -F unused_extern_crates -F unused_macro_rules -F unused_results -F unused_qualifications -F nonstandard-style -F macro_use_extern_crate -F absolute_paths_not_starting_with_crate -F ambiguous_glob_imports -F clippy::all -F clippy::perf -F clippy::pedantic -F clippy::style -F clippy::suspicious -F clippy::correctness -F clippy::nursery -F clippy::todo -F clippy::needless_borrow -F clippy::use_self -F clippy::redundant_clone -F clippy::manual_memcpy -F clippy::manual_assert -F clippy::single_match_else -F clippy::unwrap_used -F clippy::expect_used -F clippy::panic -F clippy::complexity -D clippy::cargo -F keyword_idents -F warnings -F let-underscore",
+    "clippy \
+        -- -D warnings \
+        \
+        -D clippy::all \
+        -D clippy::pedantic \
+        -D clippy::nursery \
+        \
+        -D clippy::style
+        -D clippy::doc_markdown \
+        -D clippy::items_after_statements \
+        -D clippy::let_and_return \
+        -D clippy::map_flatten \
+        -D clippy::multiple_inherent_impl \
+        -D clippy::needless_lifetimes \
+        -D clippy::redundant_closure \
+        -D clippy::shadow_reuse \
+        -D clippy::similar_names \
+        -D clippy::string_to_string \
+        -D clippy::too_many_arguments \
+        -D clippy::type_complexity \
+        -D clippy::unnecessary_sort_by \
+        -D clippy::wildcard_enum_match_arm \
+        -D clippy::wildcard_imports \
+        -D clippy::use_self \
+        -D unused_braces \
+        \
+        -D clippy::suspicious
+        \
+        -D clippy::complexity
+        -D clippy::cognitive_complexity \
+        -D clippy::cognitive_complexity \
+        \
+        -D clippy::correctness
+        -D clippy::as_conversions \
+        -D clippy::clone_on_copy \
+        -D clippy::create_dir \
+        -D clippy::dbg_macro \
+        -D clippy::default_trait_access \
+        -D clippy::else_if_without_else \
+        -D clippy::enum_glob_use \
+        -D clippy::expect_used \
+        -D clippy::explicit_into_iter_loop \
+        -D clippy::fallible_impl_from \
+        -D clippy::float_arithmetic \
+        -D clippy::format_push_string \
+        -D clippy::if_let_mutex \
+        -D clippy::imprecise_flops \
+        -D clippy::indexing_slicing \
+        -D clippy::integer_division \
+        -D clippy::large_enum_variant \
+        -D clippy::lossy_float_literal \
+        -D clippy::useless_conversion \
+        -D clippy::manual_strip \
+        -D clippy::match_bool \
+        -D clippy::mem_forget \
+        -D clippy::missing_errors_doc \
+        -D clippy::missing_panics_doc \
+        -D clippy::missing_safety_doc \
+        -D clippy::mutex_integer \
+        -D clippy::needless_collect \
+        -D clippy::needless_pass_by_value \
+        -D clippy::non_ascii_literal \
+        -D clippy::option_if_let_else \
+        -D clippy::panic \
+        -D clippy::print_with_newline \
+        -D clippy::ptr_arg \
+        -D clippy::question_mark \
+        -D clippy::rc_buffer \
+        -D clippy::semicolon_if_nothing_returned \
+        -D clippy::single_component_path_imports \
+        -D clippy::string_add_assign \
+        -D clippy::string_lit_as_bytes \
+        -D clippy::trait_duplication_in_bounds \
+        -D clippy::trivially_copy_pass_by_ref \
+        -D clippy::unwrap_used \
+        -D clippy::useless_conversion \
+        -D clippy::used_underscore_binding \
+        -D clippy::use_debug \
+        \
+        -D clippy::perf \
+        -D clippy::future_not_send \
+        -D clippy::get_unwrap \
+        -D clippy::inefficient_to_string \
+        -D clippy::let_unit_value \
+        -D clippy::large_types_passed_by_value \
+        -D clippy::linkedlist \
+        -D clippy::map_entry \
+        -D clippy::match_on_vec_items \
+        -D clippy::match_same_arms \
+        -D enum_intrinsics_non_enums \
+        -D clippy::missing_const_for_fn \
+        -D clippy::missing_enforced_import_renames \
+        -D clippy::missing_inline_in_public_items \
+        \
+        -D clippy::cargo \
+        -D future_incompatible \
+        \
+        -D anonymous_parameters \
+        -D bare_trait_objects \
+        -D dead_code \
+        -D keyword_idents \
+        -D let_underscore \
+        -D macro_use_extern_crate \
+        -D missing_copy_implementations \
+        -D missing_docs \
+        -D mutable_transmutes \
+        -D path_statements \
+        -D trivial_casts \
+        -D trivial_numeric_casts \
+        -D unused_allocation \
+        -D unused_assignments \
+        -D unused_extern_crates \
+        -D unused_imports \
+        -D unused_macro_rules \
+        -D unused_must_use",
     "test -j 4 --no-fail-fast",
-    "fmt --check"];
+    "fmt --check",
+    "outdated",
+];
+const RUST_TASKS: [&str; 8] = [
+    "verify-project",
+    "check --all-targets --profile=test",
+    "deny check",
+    "audit",
+    "clippy \
+        -- -D warnings \
+        -D clippy::all \
+        -D clippy::pedantic \
+        -D clippy::nursery \
+        \
+        -D clippy::style
+        -D clippy::doc_markdown \
+        -D clippy::items_after_statements \
+        -D clippy::let_and_return \
+        -D clippy::map_flatten \
+        -D clippy::multiple_inherent_impl \
+        -D clippy::needless_lifetimes \
+        -D clippy::redundant_closure \
+        -D clippy::shadow_reuse \
+        -D clippy::similar_names \
+        -D clippy::string_to_string \
+        -D clippy::too_many_arguments \
+        -D clippy::type_complexity \
+        -D clippy::unnecessary_sort_by \
+        -D clippy::wildcard_enum_match_arm \
+        -D clippy::wildcard_imports \
+        -D clippy::use_self \
+        -D unused_braces \
+        \
+        -D clippy::suspicious \
+        \
+        -D clippy::complexity \
+        -D clippy::cognitive_complexity \
+        \
+        -D clippy::correctness \
+        -D clippy::as_conversions \
+        -D clippy::clone_on_copy \
+        -D clippy::create_dir \
+        -D clippy::dbg_macro \
+        -D clippy::default_trait_access \
+        -D clippy::derived_hash_with_manual_eq \
+        -D clippy::else_if_without_else \
+        -D clippy::enum_glob_use \
+        -D clippy::expect_used \
+        -D clippy::explicit_into_iter_loop \
+        -D clippy::fallible_impl_from \
+        -D clippy::filetype_is_file \
+        -D clippy::float_arithmetic \
+        -D clippy::format_push_string \
+        -D clippy::future_not_send \
+        -D clippy::get_unwrap \
+        -D clippy::if_let_mutex \
+        -D clippy::imprecise_flops \
+        -D clippy::indexing_slicing \
+        -D clippy::inefficient_to_string \
+        -D clippy::integer_division \
+        -D clippy::invalid_regex \
+        -D clippy::large_enum_variant \
+        -D clippy::large_stack_arrays \
+        -D clippy::let_unit_value \
+        -D clippy::linkedlist \
+        -D clippy::lossy_float_literal \
+        -D clippy::useless_conversion \
+        -D clippy::manual_strip \
+        -D clippy::map_entry \
+        -D clippy::match_bool \
+        -D clippy::match_on_vec_items \
+        -D clippy::match_same_arms \
+        -D enum_intrinsics_non_enums \
+        -D clippy::mem_forget \
+        -D clippy::missing_const_for_fn \
+        -D clippy::missing_enforced_import_renames \
+        -D clippy::missing_errors_doc \
+        -D clippy::missing_inline_in_public_items \
+        -D clippy::missing_panics_doc \
+        -D clippy::missing_safety_doc \
+        -D clippy::mutex_integer \
+        -D clippy::needless_collect \
+        -D clippy::needless_pass_by_value \
+        -D clippy::non_ascii_literal \
+        -D clippy::option_if_let_else \
+        -D clippy::panic \
+        -D clippy::print_with_newline \
+        -D clippy::ptr_arg \
+        -D clippy::question_mark \
+        -D clippy::rc_buffer \
+        -D clippy::semicolon_if_nothing_returned \
+        -D clippy::single_component_path_imports \
+        -D clippy::string_add_assign \
+        -D clippy::string_lit_as_bytes \
+        -D clippy::trait_duplication_in_bounds \
+        -D clippy::trivially_copy_pass_by_ref \
+        -D clippy::unwrap_used \
+        -D clippy::useless_conversion \
+        -D clippy::used_underscore_binding \
+        -D clippy::use_debug \
+        \
+        -D clippy::cargo \
+        -D future_incompatible \
+        \
+        -D anonymous_parameters \
+        -D bare_trait_objects \
+        -D dead_code \
+        -D keyword_idents \
+        -D let_underscore \
+        -D macro_use_extern_crate \
+        -D missing_copy_implementations \
+        -D missing_docs \
+        -D mutable_transmutes \
+        -D no_mangle_generic_items \
+        -D path_statements \
+        -D trivial_casts \
+        -D trivial_numeric_casts \
+        -D unused_allocation \
+        -D unused_assignments \
+        -D unused_extern_crates \
+        -D unused_imports \
+        -D unused_macro_rules \
+        -D unused_must_use",
+    "test -j 4 --no-fail-fast",
+    "fmt --check",
+    "outdated",
+];
+#[doc = "The highest level of code quality and strictness"]
+const RUST_STRICT_TASKS: [&str; 8] = [
+    "verify-project",
+    "check --all-targets --profile=test",
+    "deny check",
+    "audit",
+    "clippy \
+        -- -D warnings \
+        -D clippy::all \
+        -D clippy::pedantic \
+        -D clippy::nursery \
+        \
+        -D clippy::style \
+        -D clippy::doc_markdown \
+        -D clippy::items_after_statements \
+        -D clippy::let_and_return \
+        -D clippy::map_flatten \
+        -D clippy::multiple_inherent_impl \
+        -D clippy::needless_lifetimes \
+        -D clippy::redundant_closure \
+        -D clippy::shadow_reuse \
+        -D clippy::similar_names \
+        -D clippy::string_to_string \
+        -D clippy::too_many_arguments \
+        -D clippy::type_complexity \
+        -D clippy::unnecessary_sort_by \
+        -D clippy::wildcard_enum_match_arm \
+        -D clippy::wildcard_imports \
+        -D clippy::use_self \
+        -D unused_braces \
+        \
+        -D clippy::suspicious \
+        \
+        -D clippy::complexity \
+        -D clippy::cognitive_complexity \
+        \
+        -D clippy::correctness \
+        -D clippy::as_conversions \
+        -D clippy::clone_on_copy \
+        -D clippy::create_dir \
+        -D clippy::dbg_macro \
+        -D clippy::default_trait_access \
+        -D clippy::derived_hash_with_manual_eq \
+        -D clippy::else_if_without_else \
+        -D clippy::enum_glob_use \
+        -D clippy::expect_used \
+        -D clippy::explicit_into_iter_loop \
+        -D clippy::fallible_impl_from \
+        -D clippy::filetype_is_file \
+        -D clippy::float_arithmetic \
+        -D clippy::format_push_string \
+        -D clippy::future_not_send \
+        -D clippy::get_unwrap \
+        -D clippy::if_let_mutex \
+        -D clippy::imprecise_flops \
+        -D clippy::indexing_slicing \
+        -D clippy::inefficient_to_string \
+        -D clippy::integer_division \
+        -D clippy::invalid_regex \
+        -D clippy::large_enum_variant \
+        -D clippy::large_stack_arrays \
+        -D clippy::let_unit_value \
+        -D clippy::linkedlist \
+        -D clippy::lossy_float_literal \
+        -D clippy::useless_conversion \
+        -D clippy::manual_strip \
+        -D clippy::map_entry \
+        -D clippy::match_bool \
+        -D clippy::match_on_vec_items \
+        -D clippy::match_same_arms \
+        -D enum_intrinsics_non_enums \
+        -D clippy::mem_forget \
+        -D clippy::missing_const_for_fn \
+        -D clippy::missing_enforced_import_renames \
+        -D clippy::missing_errors_doc \
+        -D clippy::missing_inline_in_public_items \
+        -D clippy::missing_panics_doc \
+        -D clippy::missing_safety_doc \
+        -D clippy::mutex_integer \
+        -D clippy::needless_collect \
+        -D clippy::needless_pass_by_value \
+        -D clippy::non_ascii_literal \
+        -D clippy::option_if_let_else \
+        -D clippy::panic \
+        -D clippy::print_with_newline \
+        -D clippy::ptr_arg \
+        -D clippy::question_mark \
+        -D clippy::rc_buffer \
+        -D clippy::semicolon_if_nothing_returned \
+        -D clippy::single_component_path_imports \
+        -D clippy::string_add_assign \
+        -D clippy::string_lit_as_bytes \
+        -D clippy::trait_duplication_in_bounds \
+        -D clippy::trivially_copy_pass_by_ref \
+        -D clippy::unwrap_used \
+        -D clippy::useless_conversion \
+        -D clippy::used_underscore_binding \
+        -D clippy::use_debug \
+        \
+        -D clippy::cargo \
+        -D future_incompatible \
+        \
+        -D anonymous_parameters \
+        -D bare_trait_objects \
+        -D dead_code \
+        -D keyword_idents \
+        -D let_underscore \
+        -D macro_use_extern_crate \
+        -D missing_copy_implementations \
+        -D missing_docs \
+        -D mutable_transmutes \
+        -D no_mangle_generic_items \
+        -D path_statements \
+        -D trivial_casts \
+        -D trivial_numeric_casts \
+        -D unused_allocation \
+        -D unused_assignments \
+        -D unused_extern_crates \
+        -D unused_imports \
+        -D unused_macro_rules \
+        -D unused_must_use",
+    "test -j 4 --no-fail-fast",
+    "fmt --check",
+    "outdated",
+];
 
-fn clear() {
-    print!("\x1B[2J\x1B[1;1H");
-    assert!(stdout().flush().is_ok());
-}
-fn disable_cursor() {
-    print!("\x1b[?25l");
-    assert!(stdout().flush().is_ok());
-}
-fn enable_cursor() {
-    print!("\x1b[?25h");
-    assert!(stdout().flush().is_ok());
-}
-fn cmd(args: &str, k: &str) -> Result<bool, Error> {
-    let x: Vec<&str> = args.split_whitespace().collect();
-    if Command::new("cargo")
-        .args(x)
-        .stdout(File::create(
-            format!("zuu{MAIN_SEPARATOR_STR}stdout/{MAIN_SEPARATOR_STR}{k}").as_str(),
-        )?)
-        .stderr(File::create(
-            format!("zuu{MAIN_SEPARATOR_STR}stderr{MAIN_SEPARATOR_STR}{k}").as_str(),
-        )?)
-        .current_dir(".")
-        .spawn()?
-        .wait()?
-        .success()
-    {
-        return Ok(true);
-    }
-    Err(Error::new(ErrorKind::InvalidData, "error detected"))
-}
-fn run(k: &Zuu, fileame: &str) -> Result<bool, Error> {
-    cmd(prepare_cmd(k).as_str(), fileame)
-}
-fn prepare_cmd(k: &Zuu) -> String {
-    match k {
-        Zuu::Verify => RUST_TASKS[0].to_string(),
-        Zuu::Check => RUST_TASKS[1].to_string(),
-        Zuu::Deny => RUST_TASKS[2].to_string(),
-        Zuu::Audit => RUST_TASKS[3].to_string(),
-        Zuu::Clippy => RUST_TASKS[4].to_string(),
-        Zuu::Test => RUST_TASKS[5].to_string(),
-        Zuu::Fmt => RUST_TASKS[6].to_string(),
-    }
-}
-fn zuu_error(k: &Zuu) -> Result<String, Error> {
-    let e: String = match k {
-        Zuu::Verify => read_to_string(
-            format!("zuu{MAIN_SEPARATOR_STR}stderr/{MAIN_SEPARATOR_STR}{ERROR_VERIFY_FILE}")
-                .as_str(),
-        )?,
-        Zuu::Check => read_to_string(
-            format!("zuu{MAIN_SEPARATOR_STR}stderr/{MAIN_SEPARATOR_STR}{ERROR_CHECK_FILE}")
-                .as_str(),
-        )?,
-        Zuu::Deny => read_to_string(
-            format!("zuu{MAIN_SEPARATOR_STR}stderr/{MAIN_SEPARATOR_STR}{ERROR_DENY_FILE}").as_str(),
-        )?,
-        Zuu::Audit => read_to_string(
-            format!("zuu{MAIN_SEPARATOR_STR}stderr/{MAIN_SEPARATOR_STR}{ERROR_AUDIT_FILE}")
-                .as_str(),
-        )?,
-        Zuu::Clippy => read_to_string(
-            format!("zuu{MAIN_SEPARATOR_STR}stderr/{MAIN_SEPARATOR_STR}{ERROR_CLIPPY_FILE}")
-                .as_str(),
-        )?,
-        Zuu::Test => read_to_string(
-            format!("zuu{MAIN_SEPARATOR_STR}stderr/{MAIN_SEPARATOR_STR}{ERROR_TEST_FILE}").as_str(),
-        )?,
-        Zuu::Fmt => read_to_string(
-            format!("zuu{MAIN_SEPARATOR_STR}stderr/{MAIN_SEPARATOR_STR}{ERROR_FMT_FILE}").as_str(),
-        )?,
-    };
-    Ok(e)
-}
-fn zuu() -> Result<(), Error> {
-    if Path::new("zuu").exists().eq(&false) {
-        create_dir_all("zuu")?;
-        create_dir_all(format!("zuu{MAIN_SEPARATOR_STR}stderr"))?;
-        create_dir_all(format!("zuu{MAIN_SEPARATOR_STR}stdout"))?;
-    }
-    if let Ok(style) = ProgressStyle::default_bar().template(ZUU_TEMPLATE) {
-        let pb: ProgressBar = ProgressBar::new(7)
-            .with_message("Checking source code")
-            .with_style(style.progress_chars("== "));
+#[doc = "Configuration maintains a strong focus on code quality and best practices"]
+const RUST_HIGH_TASKS: [&str; 8] = [
+    "verify-project",
+    "check --all-targets --profile=test",
+    "deny check",
+    "audit",
+    "clippy \
+        -- -D warnings \
+        \
+        -D clippy::all \
+        -D clippy::pedantic \
+        \
+        -D clippy::style
+        -D clippy::doc_markdown \
+        -D clippy::items_after_statements \
+        -D clippy::let_and_return \
+        -D clippy::map_flatten \
+        -D clippy::multiple_inherent_impl \
+        -D clippy::needless_lifetimes \
+        -D clippy::redundant_closure \
+        -D clippy::shadow_reuse \
+        -D clippy::similar_names \
+        -D clippy::string_to_string \
+        -D clippy::too_many_arguments \
+        -D clippy::type_complexity \
+        -D clippy::unnecessary_sort_by \
+        -D clippy::wildcard_enum_match_arm \
+        -D clippy::wildcard_imports \
+        -D clippy::use_self \
+        -D unused_braces \
+        \
+        -D clippy::suspicious
+        \
+        -D clippy::complexity
+        -D clippy::cognitive_complexity \
+        -D clippy::cognitive_complexity \
+        \
+        -D clippy::correctness
+        -D clippy::as_conversions \
+        -D clippy::clone_on_copy \
+        -D clippy::create_dir \
+        -D clippy::dbg_macro \
+        -D clippy::default_trait_access \
+        -D clippy::else_if_without_else \
+        -D clippy::enum_glob_use \
+        -D clippy::expect_used \
+        -D clippy::explicit_into_iter_loop \
+        -D clippy::fallible_impl_from \
+        -D clippy::float_arithmetic \
+        -D clippy::format_push_string \
+        -D clippy::if_let_mutex \
+        -D clippy::imprecise_flops \
+        -D clippy::indexing_slicing \
+        -D clippy::integer_division \
+        -D clippy::large_enum_variant \
+        -D clippy::lossy_float_literal \
+        -D clippy::useless_conversion \
+        -D clippy::manual_strip \
+        -D clippy::match_bool \
+        -D clippy::mem_forget \
+        -D clippy::missing_errors_doc \
+        -D clippy::missing_panics_doc \
+        -D clippy::missing_safety_doc \
+        -D clippy::mutex_integer \
+        -D clippy::needless_collect \
+        -D clippy::needless_pass_by_value \
+        -D clippy::non_ascii_literal \
+        -D clippy::option_if_let_else \
+        -D clippy::panic \
+        -D clippy::print_with_newline \
+        -D clippy::ptr_arg \
+        -D clippy::question_mark \
+        -D clippy::rc_buffer \
+        -D clippy::semicolon_if_nothing_returned \
+        -D clippy::single_component_path_imports \
+        -D clippy::string_add_assign \
+        -D clippy::string_lit_as_bytes \
+        -D clippy::trait_duplication_in_bounds \
+        -D clippy::trivially_copy_pass_by_ref \
+        -D clippy::unwrap_used \
+        -D clippy::useless_conversion \
+        -D clippy::used_underscore_binding \
+        -D clippy::use_debug \
+        \
+        -D clippy::perf\
+        -D clippy::future_not_send \
+        -D clippy::get_unwrap \
+        -D clippy::inefficient_to_string \
+        -D clippy::let_unit_value \
+        -D clippy::large_types_passed_by_value \
+        -D clippy::linkedlist \
+        -D clippy::map_entry \
+        -D clippy::match_on_vec_items \
+        -D clippy::match_same_arms \
+        -D enum_intrinsics_non_enums \
+        -D clippy::missing_const_for_fn \
+        -D clippy::missing_enforced_import_renames \
+        -D clippy::missing_inline_in_public_items \
+        \
+        -D clippy::cargo \
+        -D future_incompatible \
+        \
+        -D anonymous_parameters \
+        -D bare_trait_objects \
+        -D dead_code \
+        -D keyword_idents \
+        -W let_underscore \
+        -D macro_use_extern_crate \
+        -D missing_copy_implementations \
+        -D missing_docs \
+        -D mutable_transmutes \
+        -D path_statements \
+        -D trivial_casts \
+        -D trivial_numeric_casts \
+        -D unused_allocation \
+        -D unused_assignments \
+        -D unused_extern_crates \
+        -D unused_imports \
+        -D unused_macro_rules \
+        -D unused_must_use \
+        \
+        -W clippy::nursery",
+    "test -j 4 --no-fail-fast",
+    "fmt --check",
+    "outdated",
+];
+#[doc = "Balance between strictness and flexibility"]
+const RUST_MEDIUM_TASKS: [&str; 8] = [
+    "verify-project",
+    "check --all-targets --profile=test",
+    "deny check",
+    "audit",
+    "clippy \
+        -- -W warnings
+        \
+        -W clippy::all \
+        -W clippy::pedantic \
+        \
+        -D clippy::style \
+        -D clippy::doc_markdown \
+        -D clippy::items_after_statements \
+        -D clippy::let_and_return \
+        -D clippy::map_flatten \
+        -D clippy::multiple_inherent_impl \
+        -D clippy::needless_lifetimes \
+        -D clippy::redundant_closure \
+        -D clippy::shadow_reuse \
+        -D clippy::similar_names \
+        -D clippy::string_to_string \
+        -D clippy::too_many_arguments \
+        -D clippy::type_complexity \
+        -D clippy::unnecessary_sort_by \
+        -D clippy::wildcard_enum_match_arm \
+        -D clippy::wildcard_imports \
+        -D clippy::use_self \
+        -D unused_braces \
+        \
+        -W clippy::suspicious
+        \
+        -W clippy::complexity
+        -W clippy::cognitive_complexity \
+        -W clippy::cognitive_complexity \
+        \
+        -D clippy::correctness \
+        -D clippy::as_conversions \
+        -D clippy::clone_on_copy \
+        -D clippy::create_dir \
+        -D clippy::dbg_macro \
+        -D clippy::default_trait_access \
+        -D clippy::derived_hash_with_manual_eq \
+        -D clippy::else_if_without_else \
+        -D clippy::enum_glob_use \
+        -D clippy::expect_used \
+        -D clippy::explicit_into_iter_loop \
+        -D clippy::fallible_impl_from \
+        -D clippy::float_arithmetic \
+        -D clippy::format_push_string \
+        -D clippy::if_let_mutex \
+        -D clippy::imprecise_flops \
+        -D clippy::indexing_slicing \
+        -D clippy::integer_division \
+        -D clippy::large_enum_variant \
+        -D clippy::lossy_float_literal \
+        -D clippy::manual_strip \
+        -D clippy::match_bool \
+        -D clippy::missing_errors_doc \
+        -D clippy::missing_panics_doc \
+        -D clippy::missing_safety_doc \
+        -D clippy::mutex_integer \
+        -D clippy::needless_collect \
+        -D clippy::needless_pass_by_value \
+        -D clippy::non_ascii_literal \
+        -D clippy::option_if_let_else \
+        -D clippy::panic \
+        -D clippy::print_with_newline \
+        -D clippy::ptr_arg \
+        -D clippy::question_mark \
+        -D clippy::rc_buffer \
+        -D clippy::semicolon_if_nothing_returned \
+        -D clippy::single_component_path_imports \
+        -D clippy::string_add_assign \
+        -D clippy::string_lit_as_bytes \
+        -D clippy::trait_duplication_in_bounds \
+        -D clippy::trivially_copy_pass_by_ref \
+        -D clippy::unwrap_used \
+        -D clippy::useless_conversion \
+        -D clippy::used_underscore_binding \
+        -D clippy::use_debug \
+        \
+        -D clippy::perf \
+        -D clippy::future_not_send \
+        -D clippy::get_unwrap \
+        -D clippy::inefficient_to_string \
+        -D clippy::let_unit_value \
+        -D clippy::large_types_passed_by_value \
+        -D clippy::linkedlist \
+        -D clippy::map_entry \
+        -D clippy::match_on_vec_items \
+        -D clippy::match_same_arms \
+        -D enum_intrinsics_non_enums \
+        -D clippy::missing_const_for_fn \
+        -D clippy::missing_enforced_import_renames \
+        -D clippy::missing_inline_in_public_items \
+        \
+        -D clippy::cargo \
+        -D future_incompatible \
+        \
+        -D anonymous_parameters \
+        -D bare_trait_objects \
+        -D dead_code \
+        -D keyword_idents \
+        -W let_underscore \
+        -D macro_use_extern_crate \
+        -D missing_copy_implementations \
+        -D missing_docs \
+        -D mutable_transmutes \
+        -D path_statements \
+        -D trivial_casts \
+        -D trivial_numeric_casts \
+        -D unused_allocation \
+        -D unused_assignments \
+        -D unused_extern_crates \
+        -D unused_imports \
+        -D unused_macro_rules \
+        -D unused_must_use",
+    "test -j 4 --no-fail-fast",
+    "fmt --check",
+    "outdated",
+];
 
-        pb.enable_steady_tick(Duration::from_millis(75));
-        for x in &Zuu::all() {
-            let filename: String = match x {
-                Zuu::Verify => String::from(ERROR_VERIFY_FILE),
-                Zuu::Check => String::from(ERROR_CHECK_FILE),
-                Zuu::Deny => String::from(ERROR_DENY_FILE),
-                Zuu::Audit => String::from(ERROR_AUDIT_FILE),
-                Zuu::Clippy => String::from(ERROR_CLIPPY_FILE),
-                Zuu::Test => String::from(ERROR_TEST_FILE),
-                Zuu::Fmt => String::from(ERROR_FMT_FILE),
-            };
-            pb.set_message(filename.to_string());
-            if run(x, filename.as_str()).is_err() {
-                enable_cursor();
-
-                pb.finish_with_message(zuu_error(x)?);
-                return Err(Error::new(ErrorKind::InvalidData, zuu_error(x)?));
+#[doc = "Configuration that focuses on essential checks and warnings"]
+const RUST_LOW_TASKS: [&str; 8] = [
+    "verify-project",
+    "check --all-targets --profile=test",
+    "deny check",
+    "audit",
+    "clippy \
+        -- -W warnings \
+        -W clippy::all \
+        -W clippy::pedantic \
+        -W clippy::style \
+        -W clippy::doc_markdown \
+        -W clippy::items_after_statements \
+        -W clippy::let_and_return \
+        -W clippy::map_flatten \
+        -W clippy::multiple_inherent_impl \
+        -W clippy::needless_lifetimes \
+        -W clippy::redundant_closure \
+        -W clippy::shadow_reuse \
+        -W clippy::similar_names \
+        -W clippy::string_to_string \
+        -W clippy::too_many_arguments \
+        -W clippy::type_complexity \
+        -W clippy::unnecessary_sort_by \
+        -W clippy::wildcard_enum_match_arm \
+        -W clippy::wildcard_imports \
+        -W clippy::use_self \
+        -W unused_braces \
+        -W clippy::suspicious
+        \
+        -W clippy::complexity
+        -W clippy::cognitive_complexity \
+        -W clippy::cognitive_complexity \
+        \
+        -W clippy::correctness
+        -W clippy::as_conversions \
+        -W clippy::clone_on_copy \
+        -W clippy::create_dir \
+        -W clippy::dbg_macro \
+        -W clippy::default_trait_access \
+        -W clippy::derived_hash_with_manual_eq \
+        -W clippy::else_if_without_else \
+        -W clippy::enum_glob_use \
+        -W clippy::expect_used \
+        -W clippy::explicit_into_iter_loop \
+        -W clippy::fallible_impl_from \
+        -W clippy::float_arithmetic \
+        -W clippy::format_push_string \
+        -W clippy::if_let_mutex \
+        -W clippy::imprecise_flops \
+        -W clippy::indexing_slicing \
+        -W clippy::integer_division \
+        -W clippy::large_enum_variant \
+        -W clippy::lossy_float_literal \
+        -W clippy::manual_strip \
+        -W clippy::match_bool \
+        -W clippy::missing_errors_doc \
+        -W clippy::missing_panics_doc \
+        -W clippy::missing_safety_doc \
+        -W clippy::mutex_integer \
+        -W clippy::needless_collect \
+        -W clippy::needless_pass_by_value \
+        -W clippy::non_ascii_literal \
+        -W clippy::option_if_let_else \
+        -W clippy::panic \
+        -W clippy::print_with_newline \
+        -W clippy::ptr_arg \
+        -W clippy::question_mark \
+        -W clippy::rc_buffer \
+        -W clippy::semicolon_if_nothing_returned \
+        -W clippy::single_component_path_imports \
+        -W clippy::string_add_assign \
+        -W clippy::string_lit_as_bytes \
+        -W clippy::trait_duplication_in_bounds \
+        -W clippy::trivially_copy_pass_by_ref \
+        -W clippy::unwrap_used \
+        -W clippy::useless_conversion \
+        -W clippy::used_underscore_binding \
+        -W clippy::use_debug \
+        -W clippy::perf
+        -W clippy::future_not_send \
+        -W clippy::get_unwrap \
+        -W clippy::inefficient_to_string \
+        -W clippy::let_unit_value \
+        -W clippy::large_types_passed_by_value \
+        -W clippy::linkedlist \
+        -W clippy::map_entry \
+        -W clippy::match_on_vec_items \
+        -W clippy::match_same_arms \
+        -W enum_intrinsics_non_enums \
+        -W clippy::missing_const_for_fn \
+        -W clippy::missing_enforced_import_renames \
+        -W clippy::missing_inline_in_public_items \
+        -W clippy::cargo \
+        -W future_incompatible \
+        \
+        -W anonymous_parameters \
+        -W bare_trait_objects \
+        -W dead_code \
+        -W keyword_idents \
+        -W let_underscore \
+        -W macro_use_extern_crate \
+        -W missing_copy_implementations \
+        -W missing_docs \
+        -W mutable_transmutes \
+        -W path_statements \
+        -W trivial_casts \
+        -W trivial_numeric_casts \
+        -W unused_allocation \
+        -W unused_assignments \
+        -W unused_extern_crates \
+        -W unused_imports \
+        -W unused_macro_rules \
+        -W unused_must_use",
+    "test -j 4 --no-fail-fast",
+    "fmt --check",
+    "outdated",
+];
+#[doc = "Check all tasks by mode"]
+fn zuu(tasks: &[&str; 8]) -> ExitCode {
+    for task in tasks {
+        let x: Vec<&str> = task.split_whitespace().collect();
+        if let Ok(mut child) = Command::new("cargo").args(x).current_dir(".").spawn() {
+            if let Ok(code) = child.wait() {
+                if code.success().eq(&false) {
+                    return ExitCode::FAILURE;
+                }
             }
-
-            pb.inc(1);
         }
-        pb.finish_with_message("Code can be commited");
     }
-    Ok(())
+    ExitCode::SUCCESS
 }
-
-enum Zuu {
-    Verify,
-    Check,
-    Deny,
-    Audit,
-    Clippy,
-    Test,
-    Fmt,
-}
-impl Zuu {
-    pub const fn all() -> [Self; 7] {
-        [
-            Self::Verify,
-            Self::Check,
-            Self::Deny,
-            Self::Audit,
-            Self::Clippy,
-            Self::Test,
-            Self::Fmt,
-        ]
-    }
-}
-fn main() {
-    disable_cursor();
-    clear();
-    assert!(zuu().is_ok());
-    enable_cursor();
+#[doc = "Check source code"]
+fn main() -> ExitCode {
+    let app = Cmd::new("zuu")
+        .arg(
+            Arg::new("mode")
+                .required(true)
+                .short('m')
+                .long("mode")
+                .default_value("strict"),
+        )
+        .get_matches();
+    app.get_one::<String>("mode")
+        .map_or(ExitCode::FAILURE, |mode| match mode.as_str() {
+            "ultra" => zuu(&RUST_ULTRA_TASKS),
+            "high" => zuu(&RUST_HIGH_TASKS),
+            "medium" => zuu(&RUST_MEDIUM_TASKS),
+            "low" => zuu(&RUST_LOW_TASKS),
+            "strict" => zuu(&RUST_STRICT_TASKS),
+            _ => zuu(&RUST_TASKS),
+        })
 }
