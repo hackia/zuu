@@ -1,6 +1,6 @@
 [package]
 name = "zuu"
-version = "19.1.0"
+version = "20.0.0"
 edition = "2021"
 license = "MIT"
 keywords = ["code", "quality", "production", "certified", "rust"]
