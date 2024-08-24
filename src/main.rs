@@ -19,8 +19,6 @@
 //!
 //! The specific lints and checks performed depend on the chosen mode (ultra, high, medium, or low).
 //!
-//! It assumes a Unix-like environment due to the use of ANSI escape codes for terminal control.
-//!
 use clap::{Arg, Command as Cmd};
 use std::process::{Command, ExitCode};
 
