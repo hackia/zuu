@@ -2,13 +2,12 @@
 name = "zuu"
 version = "20.0.0"
 edition = "2021"
-license = "MIT"
-keywords = ["code", "quality", "production", "certified", "rust"]
+license = "AGPL-3.0"
 categories = ["development-tools", "development-tools::testing"]
 readme = "README.md"
 authors = ["Willy Micieli"]
 repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
-
+keywords = ["lint", "quality", "prevention", "Maintainability", "optimization"]
 [dependencies]
 clap = "4.5.16"
