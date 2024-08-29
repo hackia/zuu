@@ -57,12 +57,11 @@ fn main() -> Result<(), Error> {
 
     let cargo = values.get("cargo");
 
-    if let Some(a) = cargo {
-        parse_cargo(a);
-    }
-
     if let Some(a) = before_cargo {
         parse_shell(a);
+    }
+    if let Some(a) = cargo {
+        parse_cargo(a);
     }
     if let Some(allowed) = values.get("allow") {
         if let Some(data) = allowed.as_array() {
