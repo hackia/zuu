@@ -1,11 +1,5 @@
-# Zuu config
-
-```toml
-# clippy allowed group
 allow = []
-# clippy warn group
 warn = []
-# clippy forbid group
 forbid = [
     "cargo",
     "complexity",
@@ -16,9 +10,7 @@ forbid = [
     "correctness",
     "perf",
 ]
-# before cargo hooks
 before-cargo = ["cargo fmt"]
-# cargo hooks
 cargo = [
     "verify-project",
     "check --all-targets --profile=test",
@@ -28,8 +20,4 @@ cargo = [
     "fmt --check",
     "outdated",
 ]
-# after cargo hooks
 after-cargo = ["git status"]
-```
-
-create a zuu.toml at the root of the project or use [cargo-configure](https://github.com/otechdo/cargo-configure.git) when you create a new project.

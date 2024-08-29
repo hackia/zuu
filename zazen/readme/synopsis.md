@@ -1,3 +1,0 @@
-# SYNOPSIS
-
-zuu
