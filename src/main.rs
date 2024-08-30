@@ -4,14 +4,7 @@ use git2::{Diff, DiffFormat, DiffOptions, ErrorClass, ErrorCode, Index, Reposito
 use inquire::{Confirm, MultiSelect, Select, Text};
 use std::fs::{read_to_string, remove_file};
 use std::io::ErrorKind;
-use std::{
-    env::args,
-    fs::{self, File},
-    io::Error,
-    io::Write,
-    path::Path,
-    process::Command,
-};
+use std::{env::args, fs::File, io::Error, io::Write, path::Path, process::Command};
 use toml::Value;
 const CLIPPY_GROUPS: [&str; 8] = [
     "cargo",
@@ -306,7 +299,7 @@ fn commit_summary() -> String {
             continue;
         }
         if summary.len().gt(&50) {
-            println!("Summary must be contains less than 50 chararacter");
+            println!("Summary must be contains less than 50 characters");
             continue;
         }
         if confirm(format!("Use the summary : {summary}").as_str(), false) {
@@ -326,7 +319,7 @@ fn commit_why() -> String {
             continue;
         }
         if w.len().gt(&50) {
-            println!("The reasoning behind the change must be contains less than 50 chararacter");
+            println!("The reasoning behind the change must be contains less than 50 characters");
             continue;
         }
         why.push_str(format!("\n\t\t* {w}").as_str());
@@ -582,7 +575,7 @@ fn parse_cargo(value: &Value) {
 fn run_zuu() -> Result<(), Error> {
     let mut clippy: String = String::from("clippy -- -W warnings");
 
-    let zuu: String = fs::read_to_string("zuu.toml").unwrap_or_default();
+    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
 
     let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
 
