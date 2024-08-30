@@ -9,7 +9,7 @@ forbid = [
     "suspicious",
     "correctness",
 ]
-before-cargo = []
+before-cargo = ["cargo fmt"]
 cargo = [
     "verify-project",
     "check --all-targets --profile=test",

@@ -10,5 +10,8 @@ repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
 keywords = ["lint", "quality", "prevention", "Maintainability", "optimization"]
 [dependencies]
+chrono = "0.4.38"
+colored_truecolor = "0.1.0"
+git2 = "0.19.0"
 inquire = { version = "0.7.5", features = ["console", "editor"] }
 toml = "0.8.19"
