@@ -1,3 +1,6 @@
+use inquire::MultiSelect;
+use std::fs::remove_file;
+use std::io::ErrorKind;
 use std::{
     env::args,
     fs::{self, File},
@@ -7,6 +10,58 @@ use std::{
     process::Command,
 };
 use toml::Value;
+const CLIPPY_GROUPS: [&str; 8] = [
+    "cargo",
+    "complexity",
+    "style",
+    "nursery",
+    "pedantic",
+    "suspicious",
+    "correctness",
+    "perf",
+];
+
+const HOOKS: [&str; 7] = [
+    "verify-project",
+    "check --all-targets --profile=test",
+    "deny check",
+    "audit",
+    "test -j 4 --no-fail-fast -- --show-output",
+    "fmt --check",
+    "outdated",
+];
+
+fn decrease(g: &mut Vec<String>, data: &[String]) {
+    for d in data {
+        g.retain(|x| !x.eq(d));
+    }
+}
+fn generate_zuu() -> Result<(), Error> {
+    if Path::new("zuu.toml").exists() {
+        remove_file("zuu.toml")?;
+    }
+    let mut zuu: File = File::create_new("zuu.toml")?;
+
+    let mut groups: Vec<String> = CLIPPY_GROUPS.map(String::from).to_vec();
+    let allowed = MultiSelect::new("Select the allowed groups : ", groups.clone())
+        .prompt()
+        .unwrap_or_else(|_| Vec::from(["cargo".to_string(), "pedantic".to_string()]));
+
+    decrease(&mut groups, &allowed.clone());
+
+    let warn = MultiSelect::new("Select the warning groups : ", groups.clone())
+        .prompt()
+        .unwrap_or_else(|_| groups.clone());
+
+    decrease(&mut groups, &warn.clone());
+
+    assert!(write!(
+        zuu,
+        "allow = {allowed:?}\nwarn = {warn:?}\nforbid = {groups:?}\nbefore-cargo = []\ncargo = {HOOKS:?}\nafter-cargo = []"
+    )
+        .is_ok());
+    Ok(())
+}
 
 fn shell_exec(c: &str) {
     let x: Vec<&str> = c.split_whitespace().collect();
@@ -88,8 +143,8 @@ fn run_zuu() -> Result<(), Error> {
             }
         }
     }
-    if let Some(forbiden) = values.get("forbid") {
-        if let Some(data) = forbiden.as_array() {
+    if let Some(forbidden) = values.get("forbid") {
+        if let Some(data) = forbidden.as_array() {
             for forbid in data {
                 clippy.push_str(
                     format!(" -F clippy::{} ", forbid.as_str().unwrap_or_default()).as_str(),
@@ -120,15 +175,14 @@ fn run_zuu() -> Result<(), Error> {
 }
 fn main() -> Result<(), Error> {
     let args: Vec<String> = args().collect();
-    if args.is_empty() && Path::new("zuu.toml").exists() {
-        return run_zuu();
+    if Path::new("zuu.toml").exists() {
+        run_zuu()
     } else if args.len() == 2 && args.get(1).unwrap_or(&String::new()).eq("init") {
-        let mut zuu: File = File::create_new("zuu.toml")?;
-        return write!(
-            zuu,
-            "allow = [\"cargo\"]\nwarn = []\nforbid = [\n\t\"nursery\",\n\t\"perf\",\n\t\"complexity\",\n\t\"style\",\n\t\"pedantic\",\n\t\"suspicious\",\n\t\"correctness\"\n]\nbefore-cargo = []\ncargo = [\n\t\"verify-project\",\n\t\"check --all-targets --profile=test\",\n\t\"audit\",\n\t\"test -j 4 --no-fail-fast -- --show-output\",\n\t\"fmt --check\",\n\t\"outdated\"\n]\nafter-cargo = []\n"
-        );
+        generate_zuu()
+    } else {
+        Err(Error::new(
+            ErrorKind::Unsupported,
+            "argument not recognized",
+        ))
     }
-
-    Ok(())
 }

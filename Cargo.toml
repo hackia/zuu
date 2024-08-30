@@ -10,4 +10,5 @@ repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
 keywords = ["lint", "quality", "prevention", "Maintainability", "optimization"]
 [dependencies]
+inquire = { version = "0.7.5", features = ["console", "editor"] }
 toml = "0.8.19"
