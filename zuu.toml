@@ -9,7 +9,7 @@ forbid = [
     "suspicious",
     "correctness",
 ]
-before-cargo = ["cat Cargo.toml"]
+before-cargo = []
 cargo = [
     "verify-project",
     "check --all-targets --profile=test",
@@ -18,4 +18,4 @@ cargo = [
     "fmt --check",
     "outdated",
 ]
-after-cargo = ["git status"]
+after-cargo = []

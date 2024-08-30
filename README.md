@@ -1,4 +1,10 @@
-# Zuu config
+# generate zuu config
+
+```bash
+zuu init
+```
+
+## Config
 
 ```toml
 # clippy allowed group
@@ -32,4 +38,8 @@ cargo = [
 after-cargo = ["git status"]
 ```
 
-create a zuu.toml at the root of the project or use [cargo-configure](https://github.com/otechdo/cargo-configure.git) when you create a new project.
+> clippy it's not required in cargo hooks in run automaticly with clippy group
+
+## Projects linked
+
+- [cargo-configure](https://github.com/otechdo/cargo-configure)

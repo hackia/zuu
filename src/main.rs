@@ -1,4 +1,11 @@
-use std::{fs, io::Error, process::Command};
+use std::{
+    env::args,
+    fs::{self, File},
+    io::Error,
+    io::Write,
+    path::Path,
+    process::Command,
+};
 use toml::Value;
 
 fn shell_exec(c: &str) {
@@ -44,7 +51,7 @@ fn parse_cargo(value: &Value) {
         }
     }
 }
-fn main() -> Result<(), Error> {
+fn run_zuu() -> Result<(), Error> {
     let mut clippy: String = String::from("clippy --");
 
     let zuu: String = fs::read_to_string("zuu.toml").unwrap_or_default();
@@ -90,7 +97,6 @@ fn main() -> Result<(), Error> {
             }
         }
     }
-
     if let Ok(mut child) = Command::new("cargo")
         .args(clippy.split_whitespace())
         .current_dir(".")
@@ -110,8 +116,19 @@ fn main() -> Result<(), Error> {
             ));
         }
     }
-    Err(Error::new(
-        std::io::ErrorKind::NotFound,
-        "zuu.toml not found",
-    ))
+    Err(Error::last_os_error())
+}
+fn main() -> Result<(), Error> {
+    let args: Vec<String> = args().collect();
+    if args.is_empty() && Path::new("zuu.toml").exists() {
+        return run_zuu();
+    } else if args.len() == 2 && args.get(1).unwrap_or(&String::new()).eq("init") {
+        let mut zuu: File = File::create_new("zuu.toml")?;
+        return write!(
+            zuu,
+            "allow = [\"cargo\"]\nwarn = []\nforbid = [\n\t\"nursery\",\n\t\"perf\",\n\t\"complexity\",\n\t\"style\",\n\t\"pedantic\",\n\t\"suspicious\",\n\t\"correctness\"\n]\nbefore-cargo = []\ncargo = [\n\t\"verify-project\",\n\t\"check --all-targets --profile=test\",\n\t\"audit\",\n\t\"test -j 4 --no-fail-fast -- --show-output\",\n\t\"fmt --check\",\n\t\"outdated\"\n]\nafter-cargo = []\n"
+        );
+    }
+
+    Ok(())
 }
