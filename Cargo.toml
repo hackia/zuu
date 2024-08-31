@@ -1,6 +1,6 @@
 [package]
 name = "zuu"
-version = "22.0.0"
+version = "22.0.1"
 edition = "2021"
 license = "AGPL-3.0"
 categories = ["development-tools", "development-tools::testing"]
