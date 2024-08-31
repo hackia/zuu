@@ -227,11 +227,11 @@ fn commit(path: &str) -> Result<(), Error> {
     let footer = get_footer().unwrap_or_default();
     msg(
         COMMIT_TEMPLATE
-            .replace("%type%", ct.as_str())
-            .replace("%scope%", scope.as_str())
-            .replace("%summary%", summary.as_str())
-            .replace("%why%", why.as_str())
-            .replace("%footer%", footer.as_str())
+            .replace("%type%", ct.trim())
+            .replace("%scope%", scope.trim())
+            .replace("%summary%", summary.trim())
+            .replace("%why%", why.trim())
+            .replace("%footer%", footer.trim())
             .replace("%date%", Utc::now().date_naive().to_string().as_str())
             .replace("%author%", name().as_str())
             .replace("%email%", email().as_str())
