@@ -220,13 +220,14 @@ fn commit(path: &str) -> Result<(), Error> {
     if index.is_none() {
         return Err(Error::new(ErrorKind::NotFound, "No changes"));
     }
+    let ct = get_commit_types();
     let scope = get_scope().unwrap_or_default();
     let summary = get_summary().unwrap_or_default();
     let why = get_why().unwrap_or_default();
     let footer = get_footer().unwrap_or_default();
     msg(
         COMMIT_TEMPLATE
-            .replace("%type%", get_commit_types().as_str())
+            .replace("%type%", ct.as_str())
             .replace("%scope%", scope.as_str())
             .replace("%summary%", summary.as_str())
             .replace("%why%", why.as_str())
@@ -289,7 +290,9 @@ fn get_commit_types() -> String {
     }
     let x: Vec<&str> = t.split(':').collect();
     let mut s: String = String::from("\n");
-    s.push_str((*x.first().unwrap()).to_string().as_str());
+    if let Some(t) = x.first() {
+        s.push_str(t);
+    }
     s
 }
 
