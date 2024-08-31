@@ -572,7 +572,7 @@ fn parse_cargo(value: &Value) {
         }
     }
 }
-fn run_zuu() -> Result<(), Error> {
+fn run_zuu(args: &[String]) -> Result<(), Error> {
     let mut clippy: String = String::from("clippy -- -W warnings");
 
     let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
@@ -629,11 +629,8 @@ fn run_zuu() -> Result<(), Error> {
                 if let Some(c) = after_cargo {
                     parse_shell(c);
                 }
-                if let Ok(again) = Confirm::new("Do you want commit your code ? ")
-                    .with_default(false)
-                    .prompt()
-                {
-                    if again {
+                if let Some(c) = args.get(1) {
+                    if c.eq("commit") {
                         assert!(commit(".").is_ok());
                         return Ok(());
                     }
@@ -649,7 +646,7 @@ fn run_zuu() -> Result<(), Error> {
 fn main() -> Result<(), Error> {
     let args: Vec<String> = args().collect();
     if Path::new("zuu.toml").exists() {
-        run_zuu()
+        run_zuu(&args)
     } else if args.len() == 2 && args.get(1).unwrap_or(&String::new()).eq("init") {
         generate_zuu()
     } else {

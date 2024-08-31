@@ -23,10 +23,7 @@ A program to commit rust source code in order to commit only good code.
     - `zuu init`
 - After you can :
 - run `zuu` on your repository to check your source code
-    - if source code can be commited `zuu` will ask you if you want commit your code
-        - If you enter y or Y you will be entering in commit mode
-        - else exit the program
-
+- run `zuu commit` to check your source code and commit
 ## Config
 
 ```toml
