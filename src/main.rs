@@ -100,7 +100,7 @@ const COMMITS_TYPES: [&str; 68] = [
     "Expansion: Scaling up the system or increasing capacity",
     "Big Crunch: Reduction of codebase size or removal of features",
 ];
-const COMMIT_TEMPLATE: &str = "%type%(%scope%): %summary%\n\n\tThe following changes were made :\n\n\t%why%\n\n\t%footer%\n\n\tAuthored by :\n\n\t\t* %author% <%email%> the %date%\n";
+const COMMIT_TEMPLATE: &str = "%type%(%scope%): %summary%\n\n\tThe following changes were made :\n\n\t\t%why%\n\n\t%footer%\n\n\tAuthored by :\n\n\t\t* %author% <%email%> the %date%\n";
 
 fn check_commit(sentence: &str, f: &str) -> Result<(), Error> {
     let p = format!("commit{MAIN_SEPARATOR_STR}{f}.commit");
