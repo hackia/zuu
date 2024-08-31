@@ -67,26 +67,60 @@ after-cargo = ["echo 'Great jobs'"]
 ## Commit message format
 
 ```text
-    type(scope): summary
-
-            description
-            description
-            ...
+  type(scope): summary
+    
+            The following changes were made : 
             
-            The following changes were made :
-
-                    * why
                     * why
                     ...
             
+    %if resolve
+        
+            The commit resolve their issues :
+        
+                    Fixes issue_number
+                    ...
+    %end
+    
+    %if close 
+    
+            The commit close their issues :
+
+                    Closes #12
+    %end
             Authored by :
 
-                    * author email the date
+                    * %git.config.user.name% <%git.config.user.email%> the %date%
+    
+```
+
+## Examples with close issue
+
+
+```text
+
+    Nebula(commit): create a command for commit
+
+            The following changes were made :
+
+                    * no blocking script
+
+            The commit resolve their issues :
+
+                    Fixes #12
+
+            The commit close their issues :
+
+                    Closes #12
+
+            Authored by :
+
+                    * Willy Micieli <otechdo@otechdo.com> the 2024-08-31
 ```
 
 The commit type it's based on sky.
 
-## Log output example
+### Without close issue
 
 ```text
 Author: Willy Micieli <otechdo@otechdo.com>
