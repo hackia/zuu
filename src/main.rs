@@ -2,8 +2,9 @@ use chrono::Utc;
 use colored_truecolor::Colorize;
 use git2::{Diff, DiffFormat, DiffOptions, ErrorClass, ErrorCode, Index, Repository, Status};
 use inquire::{Confirm, MultiSelect, Select, Text};
-use std::fs::{read_to_string, remove_file};
+use std::fs::{create_dir_all, read_to_string, remove_file};
 use std::io::ErrorKind;
+use std::path::MAIN_SEPARATOR_STR;
 use std::{env::args, fs::File, io::Error, io::Write, path::Path, process::Command};
 use toml::Value;
 const CLIPPY_GROUPS: [&str; 8] = [
@@ -26,8 +27,6 @@ const HOOKS: [&str; 7] = [
     "fmt --check",
     "outdated",
 ];
-
-const CHECK_FILE: &str = "zen";
 
 const LANG: &str = "en_US";
 
@@ -103,21 +102,22 @@ const COMMITS_TYPES: [&str; 68] = [
 ];
 const COMMIT_TEMPLATE: &str = "%type%(%scope%): %summary%\n\n\tThe following changes were made :\n\n%why%\n\n%footer%\n\n\tAuthored by :\n\n\t\t* %author% <%email%> the %date%\n";
 
-fn check_commit(sentence: &str) -> Result<(), Error> {
-    if let Ok(mut f) = File::create(CHECK_FILE) {
-        assert!(writeln!(f, "{sentence}").is_ok());
+fn check_commit(sentence: &str, f: &str) -> Result<(), Error> {
+    let p = format!("commit{MAIN_SEPARATOR_STR}{f}.commit");
+    if let Ok(mut cf) = File::create(p.as_str()) {
+        assert!(writeln!(cf, "{sentence}").is_ok());
         if let Ok(child) = Command::new("hunspell")
             .arg("-d")
             .arg(LANG)
             .arg("-l")
-            .arg(CHECK_FILE)
+            .arg(p.as_str())
             .output()
         {
             if child.stdout.is_empty() {
                 return Ok(());
             }
         }
-        return arrange_commit();
+        return arrange_commit(f);
     }
     Err(Error::last_os_error())
 }
@@ -220,13 +220,17 @@ fn commit(path: &str) -> Result<(), Error> {
     if index.is_none() {
         return Err(Error::new(ErrorKind::NotFound, "No changes"));
     }
+    let scope = get_scope().unwrap_or_default();
+    let summary = get_summary().unwrap_or_default();
+    let why = get_why().unwrap_or_default();
+    let footer = get_footer().unwrap_or_default();
     msg(
         COMMIT_TEMPLATE
             .replace("%type%", get_commit_types().as_str())
-            .replace("%scope%", get_scope().as_str())
-            .replace("%summary%", get_summary().as_str())
-            .replace("%why%", get_why().as_str())
-            .replace("%footer%", get_footer().as_str())
+            .replace("%scope%", scope.as_str())
+            .replace("%summary%", summary.as_str())
+            .replace("%why%", why.as_str())
+            .replace("%footer%", footer.as_str())
             .replace("%date%", Utc::now().date_naive().to_string().as_str())
             .replace("%author%", name().as_str())
             .replace("%email%", email().as_str())
@@ -396,47 +400,47 @@ fn commit_footer() -> String {
     footer
 }
 
-fn get_scope() -> String {
+fn get_scope() -> std::io::Result<String> {
     let mut scope: String;
     loop {
         scope = commit_scope();
-        if check_commit(scope.as_str()).is_ok() {
+        if check_commit(scope.as_str(), "scope").is_ok() {
             break;
         }
     }
-    scope
+    read_to_string("commit/scope.commit")
 }
 
-fn get_summary() -> String {
+fn get_summary() -> std::io::Result<String> {
     let mut summary: String;
     loop {
         summary = commit_summary();
-        if check_commit(summary.as_str()).is_ok() {
+        if check_commit(summary.as_str(), "summary").is_ok() {
             break;
         }
     }
-    summary
+    read_to_string("commit/summary.commit")
 }
 
-fn get_why() -> String {
+fn get_why() -> std::io::Result<String> {
     let mut why: String;
     loop {
         why = commit_why();
-        if check_commit(why.as_str()).is_ok() {
+        if check_commit(why.as_str(), "why").is_ok() {
             break;
         }
     }
-    why
+    read_to_string("commit/why.commit")
 }
-fn get_footer() -> String {
+fn get_footer() -> std::io::Result<String> {
     let mut footer: String;
     loop {
         footer = commit_footer();
-        if check_commit(footer.as_str()).is_ok() {
+        if check_commit(footer.as_str(), "footer").is_ok() {
             break;
         }
     }
-    footer
+    read_to_string("commit/footer.commit")
 }
 
 fn confirm(msg: &str, default: bool) -> bool {
@@ -478,19 +482,20 @@ fn name() -> String {
     .to_string()
 }
 
-fn arrange_commit() -> Result<(), Error> {
+fn arrange_commit(f: &str) -> Result<(), Error> {
+    let p = format!("commit{MAIN_SEPARATOR_STR}{f}.commit");
     if let Ok(mut child) = Command::new("hunspell")
         .arg("-d")
         .arg(LANG)
-        .arg(CHECK_FILE)
+        .arg(p.as_str())
         .spawn()
     {
         if let Ok(code) = child.wait() {
             return if code.success() {
                 Ok(())
             } else {
-                let content = read_to_string(CHECK_FILE).unwrap_or_default();
-                check_commit(content.as_str())
+                let content = read_to_string(p.as_str()).unwrap_or_default();
+                check_commit(content.as_str(), f)
             };
         }
     }
@@ -644,6 +649,7 @@ fn run_zuu(args: &[String]) -> Result<(), Error> {
     Err(Error::last_os_error())
 }
 fn main() -> Result<(), Error> {
+    create_dir_all("commit")?;
     let args: Vec<String> = args().collect();
     if Path::new("zuu.toml").exists() {
         run_zuu(&args)
