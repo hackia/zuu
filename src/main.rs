@@ -1,667 +1,411 @@
-use chrono::Utc;
-use colored_truecolor::Colorize;
-use git2::{Diff, DiffFormat, DiffOptions, ErrorClass, ErrorCode, Index, Repository, Status};
-use inquire::{Confirm, MultiSelect, Select, Text};
-use std::fs::{create_dir_all, read_to_string, remove_file};
-use std::io::ErrorKind;
-use std::path::MAIN_SEPARATOR_STR;
-use std::{env::args, fs::File, io::Error, io::Write, path::Path, process::Command};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use std::fs::read_to_string;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::Duration;
 use toml::Value;
-const CLIPPY_GROUPS: [&str; 8] = [
-    "cargo",
-    "complexity",
-    "style",
-    "nursery",
-    "pedantic",
-    "suspicious",
-    "correctness",
-    "perf",
-];
 
-const HOOKS: [&str; 7] = [
-    "verify-project",
-    "check --all-targets --profile=test",
-    "deny check",
-    "audit",
-    "test -j 4 --no-fail-fast -- --show-output",
-    "fmt --check",
-    "outdated",
-];
-
-const LANG: &str = "en_US";
-
-const COMMITS_TYPES: [&str; 68] = [
-    "Star: New feature or enhancement",
-    "Comet: Bug fix or error resolution",
-    "Nebula: Code refactoring",
-    "Pulsar: Performance improvement",
-    "Quasar: Documentation or clarity improvement",
-    "Asteroid Belt: Code cleanup and maintenance",
-    "Solar Flare: Testing-related changes",
-    "Dwarf Planet: Minor updates or fixes",
-    "Terraform: Infrastructure changes",
-    "Black Hole: Removing large chunks of code or features",
-    "Wormhole: Merging branches or connecting code parts",
-    "Big Bang: Initial commit or major feature start",
-    "Launch: Deploying to production or releasing a version",
-    "Lightspeed: Significant performance improvements",
-    "Mission Control: Project management changes",
-    "Spacewalk: Urgent hotfixes",
-    "Moon Landing: Major milestone or goal completion",
-    "First Contact: Initial integrations with external systems",
-    "Interstellar Communication: Improving documentation or communication",
-    "Solar Eclipse: Temporarily masking functionality",
-    "Supernova: Major, transformative change",
-    "Meteor Shower: Series of small changes or fixes",
-    "Solar Wind: Refactoring code structure",
-    "Lunar Eclipse: Temporarily disabling a feature",
-    "Cosmic Dawn: Initial implementation of a feature",
-    "Solar Storm: Rapid, impactful changes",
-    "Lunar Transit: Minor, temporary change",
-    "Perihelion: Brings the project closer to its goals or objectives",
-    "Aphelion: Immediate goals, but is necessary for long-term progress",
-    "White Dwarf: Improving code comments or documentation",
-    "Red Giant: Expanding a feature or functionality",
-    "Neutron Star: Optimizing code for performance",
-    "Binary Star: Merging features or components",
-    "Brown Dwarf: Undeveloped feature with potential",
-    "Quark Star: Experimental or speculative change",
-    "Rogue Planet: Independent change",
-    "Stellar Nursery: Creation of new components",
-    "Planetary Nebula: Removal or deprecation of a component",
-    "Globular Cluster: Collection of related changes",
-    "Void: Removal of a module, component, or feature",
-    "Gravity: Resolving merge conflicts or dependencies",
-    "Dark Matter: Fixing unknown or mysterious bugs",
-    "Time Dilation: Improving code performance",
-    "Spacetime: Changes to date, time, or scheduling",
-    "Gravitational Lensing: Altering data or information flow",
-    "Cosmic String: Connecting code parts",
-    "Quantum Fluctuation: Small, random change",
-    "Hawking Radiation: Removing technical debt",
-    "Quantum Entanglement: Establishing close relationships between code parts",
-    "Gravitational Redshift: Slowing down or reducing code performance",
-    "Space Probe: Testing new features or technologies",
-    "Station: Creating or improving environments",
-    "Rocket Launch: Deploying to production",
-    "Spacewalk: Urgent production hotfixes",
-    "Space Elevator: Making codebase more accessible",
-    "Warp Drive: Significant speed improvement",
-    "Dyson Sphere: Comprehensive optimization of a specific area",
-    "Generation Ship: Long-term project for a self -sustaining system",
-    "Lagrange Point: Stabilizing or balancing code parts",
-    "Orbital Maneuver: Changing project direction",
-    "Mission Control: Represents project management-related changes",
-    "Moon Landing: Celebrates the completion of major milestones",
-    "Interstellar Travel: Migration to a new architecture or language",
-    "Rover: Exploration of new technologies or approaches",
-    "Singularity: Resolution of a complex or hard-to-reproduce issue",
-    "Relativity: Changes related to time, dates, or timestamps",
-    "Expansion: Scaling up the system or increasing capacity",
-    "Big Crunch: Reduction of codebase size or removal of features",
-];
-const COMMIT_TEMPLATE: &str = "%type%(%scope%): %summary%\n\n\tThe following changes were made :\n\n\t\t%why%\n\n\t%footer%\n\n\tAuthored by :\n\n\t\t* %author% <%email%> the %date%\n";
-
-fn check_commit(sentence: &str, f: &str) -> Result<(), Error> {
-    let p = format!("commit{MAIN_SEPARATOR_STR}{f}.commit");
-    if let Ok(mut cf) = File::create(p.as_str()) {
-        assert!(writeln!(cf, "{sentence}").is_ok());
-        if let Ok(child) = Command::new("hunspell")
-            .arg("-d")
-            .arg(LANG)
-            .arg("-l")
-            .arg(p.as_str())
-            .output()
-        {
-            if child.stdout.is_empty() {
-                return Ok(());
-            }
-        }
-        return arrange_commit(f);
-    }
-    Err(Error::last_os_error())
+pub struct Bar {
+    pub bar: MultiProgress,
+    pub template: String,
+    pub style: ProgressStyle,
+    pub progress: String,
+    pub tick: Duration,
 }
-fn print_diff(diff: &Diff<'_>) -> Result<(), git2::Error> {
-    if let Ok(stats) = diff.stats() {
-        let x = diff.print(DiffFormat::Patch, |_delta, _hunk, line| {
-            let origin = line.origin();
-            let content: String = String::from_utf8_lossy(line.content()).into_owned();
-            match origin {
-                '-' => print!("{} {}", "-".red(), content.red()),
-                '+' => print!("{} {}", "+".green(), content.green()),
-                '@' => print!("  {}", content.cyan()),
-                _ => print!("  {content}"),
-            }
-            true
-        });
-
-        print!(
-            "\n  {} files changed, {} insertions(+), {} deletion(-)\n",
-            stats.files_changed(),
-            stats.insertions(),
-            stats.deletions(),
-        );
-        return x;
-    }
-    Err(git2::Error::new(
-        ErrorCode::Ambiguous,
-        ErrorClass::Repository,
-        "no stats",
-    ))
+pub struct Zuu {
+    pub options: Options,
+    pub badges: Badges,
+    pub hooks: Hooks,
+    pub groups: Groups,
+    pub bar: Bar,
 }
-fn diff(path: &str) -> Result<(), Error> {
-    if let Ok(r) = Repository::open(path) {
-        let mut opts: DiffOptions = DiffOptions::new();
-        if let Ok(changes) = r.diff_index_to_workdir(
-            None,
-            Some(&mut opts.include_untracked(true).recurse_untracked_dirs(true)),
-        ) {
-            assert!(print_diff(&changes).is_ok());
-            return Ok(());
-        }
-    }
-    Err(Error::last_os_error())
+#[derive(Copy, Clone)]
+pub struct Options {
+    pub verify_project: bool,
+    pub format: bool,
+    pub install: bool,
+    pub clean: bool,
+    pub doc: bool,
+    pub audit: bool,
+    pub test: bool,
+    pub check: bool,
+    pub update: bool,
+    pub deny: bool,
+    pub outdated: bool,
+    pub watch: bool,
+}
+pub struct Badges {
+    pub success: String,
+    pub failure: String,
 }
 
-fn add(path: &str) -> Option<Index> {
-    if let Ok(r) = Repository::open(path) {
-        return r.statuses(None).map_or_else(
-            |_| None,
-            |status| {
-                let mut file_options: Vec<String> = Vec::new();
-                for entry in &status {
-                    let status: Status = entry.status();
-                    if status.is_wt_new() || status.is_wt_modified() {
-                        let path = entry.path().unwrap_or_default();
-                        file_options.push(path.to_string());
+#[derive(Debug)]
+pub struct Hooks {
+    pub before_all: Vec<String>,
+    pub before_each: Vec<String>,
+    pub after_all: Vec<String>,
+    pub for_each: Vec<String>,
+    pub after_each: Vec<String>,
+}
+
+pub struct Groups {
+    pub allow: Vec<String>,
+    pub warn: Vec<String>,
+    pub forbid: Vec<String>,
+}
+
+fn groups() -> Groups {
+    let mut configuration: Groups = Groups {
+        allow: Vec::new(),
+        warn: Vec::new(),
+        forbid: Vec::new(),
+    };
+    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
+    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
+    if let Some(groups) = values.get("groups") {
+        if let Some(groups) = groups.as_table() {
+            if let Some(allow) = groups.get("allow") {
+                if let Some(allow) = allow.as_array() {
+                    let mut x: Vec<String> = Vec::new();
+                    for a in allow {
+                        x.push(a.to_string());
                     }
+                    configuration.allow = x;
                 }
-                if file_options.is_empty() {
-                    println!("No files to add.");
-                    None
-                } else if let Ok(selected_files) =
-                    MultiSelect::new("Select files to add:", file_options).prompt()
-                {
-                    let mut index = r.index().expect("msg");
-                    for file in &selected_files {
-                        index.add_path(file.as_ref()).expect("msg");
+            }
+            if let Some(warn) = groups.get("warn") {
+                if let Some(warn) = warn.as_array() {
+                    let mut x: Vec<String> = Vec::new();
+                    for a in warn {
+                        x.push(a.to_string());
                     }
-                    index.write().expect("msg");
-                    println!("Added {} files to the index.", selected_files.len());
-                    Some(index)
-                } else {
-                    None
+                    configuration.warn = x;
                 }
-            },
-        );
-    }
-    None
-}
-
-fn msg(m: &str, r: &str) -> Result<(), Error> {
-    if let Ok(mut child) = Command::new("git")
-        .arg("commit")
-        .arg("-m")
-        .arg(m)
-        .current_dir(r)
-        .spawn()
-    {
-        if let Ok(code) = child.wait() {
-            if code.success() {
-                return Ok(());
+            }
+            if let Some(forbid) = groups.get("forbid") {
+                if let Some(forbid) = forbid.as_array() {
+                    let mut x: Vec<String> = Vec::new();
+                    for a in forbid {
+                        x.push(a.to_string());
+                    }
+                    configuration.forbid = x;
+                }
             }
         }
     }
-    Err(Error::last_os_error())
+    configuration
 }
-fn commit(path: &str) -> Result<(), Error> {
-    assert!(diff(path).is_ok());
-    let index = add(path);
-    if index.is_none() {
-        return Err(Error::new(ErrorKind::NotFound, "No changes"));
+fn hooks() -> Hooks {
+    let mut configuration: Hooks = Hooks {
+        before_all: Vec::new(),
+        before_each: Vec::new(),
+        after_all: Vec::new(),
+        for_each: Vec::new(),
+        after_each: Vec::new(),
+    };
+    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
+    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
+    if let Some(options) = values.get("hooks") {
+        if let Some(options) = options.as_table() {
+            if let Some(before_all) = options.get("before-all") {
+                if let Some(before_all) = before_all.as_array() {
+                    let mut x: Vec<String> = Vec::new();
+                    for before in before_all {
+                        if let Some(b) = before.as_table() {
+                            if let Some(c) = b.get("command")
+                            {
+                                dbg!(c);
+                            }
+                            if let Some(command) = b.get("before-run") {
+                                if let Some(command) = command.as_str() {
+                                    dbg!(command);
+                                    x.push(command.to_string());
+                                }
+                            }
+                        }
+                    }
+                    configuration.before_all = x;
+                }
+            }
+            if let Some(after_all) = options.get("after-all") {
+                if let Some(after_all) = after_all.as_array() {
+                    let mut x: Vec<String> = Vec::new();
+                    for after in after_all {
+                        if let Some(a) = after.as_str() {
+                            x.push(a.to_string());
+                        }
+                    }
+                    configuration.after_all = x;
+                }
+            }
+            if let Some(before_each) = options.get("before-each") {
+                if let Some(before_each) = before_each.as_array() {
+                    let mut x: Vec<String> = Vec::new();
+                    for before in before_each {
+                        if let Some(b) = before.as_str() {
+                            x.push(b.to_string());
+                        }
+                    }
+                    configuration.before_each = x;
+                }
+            }
+            if let Some(for_each) = options.get("for-each") {
+                if let Some(for_each) = for_each.as_array() {
+                    let mut x: Vec<String> = Vec::new();
+                    for each in for_each {
+                        if let Some(each) = each.as_str() {
+                            x.push(each.to_string());
+                        }
+                    }
+                    configuration.for_each = x;
+                }
+            }
+            if let Some(after_each) = options.get("after-each") {
+                if let Some(after_each) = after_each.as_array() {
+                    let mut x: Vec<String> = Vec::new();
+                    for each in after_each {
+                        if let Some(each) = each.as_str() {
+                            x.push(each.to_string());
+                        }
+                    }
+                    configuration.after_each = x;
+                }
+            }
+        }
     }
-    let ct = get_commit_types();
-    let scope = get_scope().unwrap_or_default();
-    let summary = get_summary().unwrap_or_default();
-    let why = get_why().unwrap_or_default();
-    let footer = get_footer().unwrap_or_default();
-    msg(
-        COMMIT_TEMPLATE
-            .replace("%type%", ct.trim())
-            .replace("%scope%", scope.trim())
-            .replace("%summary%", summary.trim())
-            .replace("%why%", why.trim())
-            .replace("%footer%", footer.trim())
-            .replace("%date%", Utc::now().date_naive().to_string().as_str())
-            .replace("%author%", name().as_str())
-            .replace("%email%", email().as_str())
-            .as_str(),
-        path,
-    )
+    configuration
+}
+fn options() -> Options {
+    let mut configuration: Options = Options {
+        verify_project: false,
+        format: false,
+        install: false,
+        clean: false,
+        doc: false,
+        audit: false,
+        test: false,
+        check: false,
+        update: false,
+        deny: false,
+        outdated: false,
+        watch: false,
+    };
+    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
+    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
+    if let Some(options) = values.get("options") {
+        if let Some(options) = options.as_table() {
+            if let Some(format) = options.get("format") {
+                if let Some(format) = format.as_bool() {
+                    configuration.format = format;
+                }
+            }
+            if let Some(verify_project) = options.get("verify-project") {
+                if let Some(verify_project) = verify_project.as_bool() {
+                    configuration.verify_project = verify_project;
+                }
+            }
+            if let Some(install) = options.get("install") {
+                if let Some(install) = install.as_bool() {
+                    configuration.install = install;
+                }
+            }
+            if let Some(clean) = options.get("clean") {
+                if let Some(clean) = clean.as_bool() {
+                    configuration.clean = clean;
+                }
+            }
+            if let Some(doc) = options.get("doc") {
+                if let Some(doc) = doc.as_bool() {
+                    configuration.doc = doc;
+                }
+            }
+            if let Some(audit) = options.get("audit") {
+                if let Some(audit) = audit.as_bool() {
+                    configuration.audit = audit;
+                }
+            }
+            if let Some(test) = options.get("test") {
+                if let Some(test) = test.as_bool() {
+                    configuration.test = test;
+                }
+            }
+            if let Some(check) = options.get("check") {
+                if let Some(check) = check.as_bool() {
+                    configuration.check = check;
+                }
+            }
+            if let Some(update) = options.get("update") {
+                if let Some(update) = update.as_bool() {
+                    configuration.update = update;
+                }
+            }
+            if let Some(deny) = options.get("deny") {
+                if let Some(deny) = deny.as_bool() {
+                    configuration.deny = deny;
+                }
+            }
+            if let Some(outdated) = options.get("outdated") {
+                if let Some(outdated) = outdated.as_bool() {
+                    configuration.outdated = outdated;
+                }
+            }
+            if let Some(watch) = options.get("watch") {
+                if let Some(watch) = watch.as_bool() {
+                    configuration.watch = watch;
+                }
+            }
+        }
+    }
+    configuration
 }
 
-fn commit_types_with_help() -> [&'static str; 68] {
-    let mut x = COMMITS_TYPES;
-    x.sort_unstable();
+fn badges() -> Badges {
+    let mut configuration: Badges = Badges {
+        success: "".to_string(),
+        failure: "".to_string(),
+    };
+    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
+    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
+    if let Some(config) = values.get("badges") {
+        if let Some(config) = config.as_table() {
+            if let Some(success) = config.get("success") {
+                if let Some(success) = success.as_str() {
+                    configuration.success = success.to_string();
+                }
+            }
+            if let Some(failure) = config.get("failure") {
+                if let Some(failure) = failure.as_str() {
+                    configuration.failure = failure.to_string();
+                }
+            }
+        }
+    }
+    configuration
+}
+fn bar_template() -> String {
+    let x = String::new();
+    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
+    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
+    if let Some(config) = values.get("bar") {
+        if let Some(template) = config.get("template") {
+            if let Some(template) = template.as_str() {
+                return template.to_string();
+            }
+        }
+    }
     x
 }
-
-fn commit_scope() -> String {
-    let mut scope: String;
-    loop {
-        scope = Text::new("Please enter the commit scope : ")
-            .prompt()
-            .unwrap_or_default();
-        if scope.is_empty() {
-            continue;
-        }
-        if scope.len().gt(&20) {
-            println!("scope can be superior to 20 character");
-            continue;
-        }
-        if confirm(
-            format!("Really use the commit scope : {scope}").as_str(),
-            false,
-        )
-        .eq(&true)
-        {
-            break;
-        }
-    }
-    scope
-}
-
-fn get_commit_types() -> String {
-    let mut t: String;
-    loop {
-        t = Select::new(
-            "Please enter the commit type : ",
-            commit_types_with_help().to_vec(),
-        )
-        .prompt()
-        .unwrap_or_default()
-        .to_string();
-        if t.is_empty() {
-            continue;
-        }
-        if confirm(format!("Really use the commit type : {t}").as_str(), false) {
-            break;
-        }
-    }
-    let x: Vec<&str> = t.split(':').collect();
-    let mut s: String = String::from("\n");
-    if let Some(t) = x.first() {
-        s.push_str(t);
-    }
-    s
-}
-
-fn commit_summary() -> String {
-    let mut summary: String;
-    loop {
-        summary = Text::new("Please enter the commit summary : ")
-            .prompt()
-            .unwrap_or_default();
-        if summary.is_empty() {
-            continue;
-        }
-        if summary.len().gt(&50) {
-            println!("Summary must be contains less than 50 characters");
-            continue;
-        }
-        if confirm(format!("Use the summary : {summary}").as_str(), false) {
-            break;
-        }
-    }
-    summary
-}
-
-fn commit_why() -> String {
-    let mut why: String = String::new();
-    loop {
-        let w = Text::new("Please explain the reasoning behind the change : ")
-            .prompt()
-            .unwrap_or_default();
-        if w.is_empty() {
-            continue;
-        }
-        if w.len().gt(&50) {
-            println!("The reasoning behind the change must be contains less than 50 characters");
-            continue;
-        }
-        why.push_str(format!("\n\t\t* {w}").as_str());
-        if confirm("Continue to write the changes : ", false) {
-            continue;
-        }
-        break;
-    }
-    why
-}
-fn commit_footer() -> String {
-    let mut footer: String = String::new();
-    if confirm("Code has breaking changes ?", false) {
-        footer.push_str("\n\tThe following changes break :\n");
-        loop {
-            let b = Text::new("Please enter the breaking change description: ")
-                .prompt()
-                .unwrap_or_default();
-            if b.is_empty() {
-                continue;
-            }
-            if confirm(
-                format!("Use breaking change description : {b}").as_str(),
-                false,
-            ) {
-                footer.push_str(format!("\n\t\t* {b}\n").as_str());
-                if confirm("Add a new description line ?", false).eq(&true) {
-                    continue;
-                }
-                break;
+fn bar_progress() -> String {
+    let x = String::new();
+    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
+    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
+    if let Some(config) = values.get("bar") {
+        if let Some(progress) = config.get("progress") {
+            if let Some(progress) = progress.as_str() {
+                return progress.to_string();
             }
         }
     }
-    if confirm("Code has resolving issues ?", false) {
-        footer.push_str("\n\tThe commit resolve their issues :\n");
-        loop {
-            footer.push_str("\n\t\tFixes ");
-            loop {
-                let f = Text::new("Please enter the issue number : ")
-                    .prompt()
-                    .unwrap_or_default();
-                if f.is_empty() {
-                    continue;
-                }
-                footer.push_str(format!("#{f}\n").as_str());
-                break;
-            }
-            if confirm("Code resolving an other issues ?", false) {
-                continue;
-            }
-            break;
-        }
+    x
+}
+fn bar_style() -> ProgressStyle {
+    if let Ok(x) = ProgressStyle::with_template(bar_template().as_str()) {
+        return x;
     }
-    if confirm("Code close an issue ?", false) {
-        footer.push_str("\n\tThe commit close their issues :\n");
-        loop {
-            footer.push_str("\n\t\tCloses ");
-            loop {
-                let f = Text::new("Please enter the issue number : ")
-                    .prompt()
-                    .unwrap_or_default();
-                if f.is_empty() {
-                    continue;
-                }
-                footer.push_str(format!("#{f}\n").as_str());
-                break;
-            }
-            if confirm("Code resolve an other issue ?", false) {
-                continue;
-            }
-            break;
-        }
+    ProgressStyle::default_spinner()
+}
+fn zuu() -> Zuu {
+    Zuu {
+        options: options(),
+        badges: badges(),
+        hooks: hooks(),
+        groups: groups(),
+        bar: Bar {
+            bar: MultiProgress::new(),
+            template: bar_template(),
+            style: bar_style(),
+            progress: bar_progress(),
+            tick: Duration::from_millis(100),
+        },
     }
-    footer
 }
 
-fn get_scope() -> std::io::Result<String> {
-    let mut scope: String;
-    loop {
-        scope = commit_scope();
-        if check_commit(scope.as_str(), "scope").is_ok() {
-            break;
+fn exec(verb: String, args: &[&str]) -> bool {
+    if let Ok(mut x) = Command::new("cargo")
+        .arg(verb)
+        .args(args)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .current_dir(".")
+        .spawn()
+    {
+        if let Ok(status) = x.wait() {
+            return status.success().eq(&true);
         }
+        return false;
     }
-    read_to_string("commit/scope.commit")
+    false
 }
-
-fn get_summary() -> std::io::Result<String> {
-    let mut summary: String;
-    loop {
-        summary = commit_summary();
-        if check_commit(summary.as_str(), "summary").is_ok() {
-            break;
+fn shell_exec(c: &str) -> bool {
+    if let Ok(mut child) = Command::new("sh")
+        .arg("-c")
+        .arg(c)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .current_dir(".")
+        .spawn()
+    {
+        if let Ok(s) = child.wait() {
+            return s.success();
         }
-    }
-    read_to_string("commit/summary.commit")
-}
-
-fn get_why() -> std::io::Result<String> {
-    let mut why: String;
-    loop {
-        why = commit_why();
-        if check_commit(why.as_str(), "why").is_ok() {
-            break;
-        }
-    }
-    read_to_string("commit/why.commit")
-}
-fn get_footer() -> std::io::Result<String> {
-    let mut footer: String;
-    loop {
-        footer = commit_footer();
-        if check_commit(footer.as_str(), "footer").is_ok() {
-            break;
-        }
-    }
-    read_to_string("commit/footer.commit")
-}
-
-fn confirm(msg: &str, default: bool) -> bool {
-    if let Ok(r) = Confirm::new(msg).with_default(default).prompt() {
-        return r;
     }
     false
 }
 
-fn email() -> String {
-    String::from_utf8(
-        Command::new("git")
-            .arg("config")
-            .arg("--get")
-            .arg("user.email")
-            .current_dir(".")
-            .output()
-            .expect("git email not found")
-            .stdout,
-    )
-    .expect("msg")
-    .trim()
-    .to_string()
+fn bar(
+    tick: Duration,
+    style: &ProgressStyle,
+    len: u64,
+    message: String,
+    end_message: String,
+) -> ProgressBar {
+    let pb: ProgressBar = ProgressBar::new(len);
+    pb.enable_steady_tick(tick);
+    pb.set_style(style.clone());
+    pb.set_message(message);
+    pb.finish_with_message(end_message);
+    pb
 }
 
-fn name() -> String {
-    String::from_utf8(
-        Command::new("git")
-            .arg("config")
-            .arg("--get")
-            .arg("user.name")
-            .current_dir(".")
-            .output()
-            .expect("username not found")
-            .stdout,
-    )
-    .expect("msg")
-    .trim()
-    .to_string()
-}
-
-fn arrange_commit(f: &str) -> Result<(), Error> {
-    let p = format!("commit{MAIN_SEPARATOR_STR}{f}.commit");
-    if let Ok(mut child) = Command::new("hunspell")
-        .arg("-d")
-        .arg(LANG)
-        .arg(p.as_str())
-        .spawn()
-    {
-        if let Ok(code) = child.wait() {
-            return if code.success() {
-                Ok(())
-            } else {
-                let content = read_to_string(p.as_str()).unwrap_or_default();
-                check_commit(content.as_str(), f)
-            };
+fn run_hook(verb: &str, x: &Vec<String>, o: &MultiProgress) {
+    for (index, hook) in x.iter().enumerate() {
+        if shell_exec(hook.as_str()) {
+            assert!(o
+                .println(format!(
+                    "{verb} hook n°{index} has been executed successfully"
+                ))
+                .is_ok());
+        } else {
+            assert!(o
+                .println(format!(
+                    "{verb} hook n°{index} failed to execute the hook {hook}"
+                ))
+                .is_ok());
         }
     }
-    Err(Error::last_os_error())
 }
-
-fn decrease(g: &mut Vec<String>, data: &[String]) {
-    for d in data {
-        g.retain(|x| !x.eq(d));
+fn main() -> std::io::Result<()> {
+    dbg!(hooks());
+    let app: Zuu = zuu();
+    let output = app.bar.bar;
+    let mut threads = vec![];
+    run_hook("before all", &app.hooks.before_all, &output);
+    for _i in 0..=10 {
+        threads.push(thread::spawn(move || {}));
     }
-}
-fn generate_zuu() -> Result<(), Error> {
-    if Path::new("zuu.toml").exists() {
-        remove_file("zuu.toml")?;
+    for thread in threads {
+        let _ = thread.join();
     }
-    let mut zuu: File = File::create_new("zuu.toml")?;
-
-    let mut groups: Vec<String> = CLIPPY_GROUPS.map(String::from).to_vec();
-    let allowed = MultiSelect::new("Select the allowed groups : ", groups.clone())
-        .prompt()
-        .unwrap_or_else(|_| Vec::from(["cargo".to_string(), "pedantic".to_string()]));
-
-    decrease(&mut groups, &allowed.clone());
-
-    let warn = MultiSelect::new("Select the warning groups : ", groups.clone())
-        .prompt()
-        .unwrap_or_else(|_| groups.clone());
-
-    decrease(&mut groups, &warn.clone());
-
-    assert!(write!(
-        zuu,
-        "allow = {allowed:?}\nwarn = {warn:?}\nforbid = {groups:?}\nbefore-cargo = []\ncargo = {HOOKS:?}\nafter-cargo = []"
-    )
-        .is_ok());
+    run_hook("after all", &app.hooks.after_all, &output);
     Ok(())
-}
-
-fn shell_exec(c: &str) {
-    let x: Vec<&str> = c.split_whitespace().collect();
-    if let Ok(mut child) = Command::new("sh")
-        .args(["-c", x.join(" ").as_str()])
-        .current_dir(".")
-        .spawn()
-    {
-        if let Ok(s) = child.wait() {
-            assert!(s.success());
-        }
-    }
-}
-
-fn run(c: &str) {
-    if let Ok(mut child) = Command::new("cargo")
-        .args(c.split_whitespace())
-        .current_dir(".")
-        .spawn()
-    {
-        if let Ok(s) = child.wait() {
-            assert!(s.success());
-        }
-    }
-}
-
-fn parse_shell(value: &Value) {
-    if let Some(data) = value.as_array() {
-        for hook in data {
-            if let Some(h) = hook.as_str() {
-                shell_exec(h);
-            }
-        }
-    }
-}
-fn parse_cargo(value: &Value) {
-    if let Some(data) = value.as_array() {
-        for hook in data {
-            if let Some(h) = hook.as_str() {
-                run(h);
-            }
-        }
-    }
-}
-fn run_zuu(args: &[String]) -> Result<(), Error> {
-    let mut clippy: String = String::from("clippy -- -W warnings");
-
-    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
-
-    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
-
-    let before_cargo = values.get("before-cargo");
-
-    let after_cargo = values.get("after-cargo");
-
-    let cargo = values.get("cargo");
-
-    if let Some(a) = before_cargo {
-        parse_shell(a);
-    }
-    if let Some(a) = cargo {
-        parse_cargo(a);
-    }
-    if let Some(allowed) = values.get("allow") {
-        if let Some(data) = allowed.as_array() {
-            for warn in data {
-                clippy.push_str(
-                    format!(" -A clippy::{} ", warn.as_str().unwrap_or_default()).as_str(),
-                );
-            }
-        }
-    }
-    if let Some(warning) = values.get("warn") {
-        if let Some(data) = warning.as_array() {
-            for warn in data {
-                clippy.push_str(
-                    format!(" -W clippy::{} ", warn.as_str().unwrap_or_default()).as_str(),
-                );
-            }
-        }
-    }
-    if let Some(forbidden) = values.get("forbid") {
-        if let Some(data) = forbidden.as_array() {
-            for forbid in data {
-                clippy.push_str(
-                    format!(" -F clippy::{} ", forbid.as_str().unwrap_or_default()).as_str(),
-                );
-            }
-        }
-    }
-    if let Ok(mut child) = Command::new("cargo")
-        .args(clippy.split_whitespace())
-        .current_dir(".")
-        .spawn()
-    {
-        if let Ok(code) = child.wait() {
-            if code.success() {
-                println!("\x1b[1;32m    Finished\x1b[0;37m Code can be commited\x1b[0m");
-                if let Some(c) = after_cargo {
-                    parse_shell(c);
-                }
-                if let Some(c) = args.get(1) {
-                    if c.eq("commit") {
-                        assert!(commit(".").is_ok());
-                        return Ok(());
-                    }
-                }
-                return Ok(());
-            }
-            return Err(Error::new(ErrorKind::InvalidData, "Source code not valid"));
-        }
-        return Err(Error::new(ErrorKind::InvalidData, "Source code not valid"));
-    }
-    Err(Error::last_os_error())
-}
-fn main() -> Result<(), Error> {
-    create_dir_all("commit")?;
-    let args: Vec<String> = args().collect();
-    if Path::new("zuu.toml").exists() {
-        run_zuu(&args)
-    } else if args.len() == 2 && args.get(1).unwrap_or(&String::new()).eq("init") {
-        generate_zuu()
-    } else {
-        Err(Error::new(
-            ErrorKind::Unsupported,
-            "argument not recognized",
-        ))
-    }
 }
