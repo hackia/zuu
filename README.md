@@ -2,6 +2,8 @@
 
 A program to verify cargo source code
 
+![zuu](zuu.svg)
+
 ## Instalation
 
 ### For cli
