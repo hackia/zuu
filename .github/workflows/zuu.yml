@@ -14,21 +14,27 @@ jobs:
         os: [ ubuntu-latest, macos-latest  ]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
-    - name: deps
-      run:  cargo install cargo-audit cargo-auditable cargo-deny cargo-outdated
-    - name: installation
-      run:  cargo install zuu --no-default-features --features cli
-    - name: zuu
-      run: git clone https://github.com/otechdo/zuu app && cd app && git checkout "${GITHUB_REF##*/}" && zuu
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: deps
+        run:  cargo install cargo-audit cargo-auditable cargo-deny cargo-outdated
+      - name: installation
+        run:  cargo install zuu --no-default-features --features cli
+      - name: zuu
+        run: git clone https://github.com/otechdo/zuu app && cd app && git checkout "${GITHUB_REF##*/}" && zuu
   windows_zuu:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v3 
-    - name: deps    
-      run:  cargo install cargo-audit cargo-auditable cargo-deny cargo-outdated
-    - name: installation
-      run:  cargo install zuu --no-default-features --features cli
-    - name: zuu
-      run: git clone https://github.com/otechdo/zuu .\app && cd .\app && git checkout "${GITHUB_REF##*/}" && zuu
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20' 
+      - name: deps    
+        run:  cargo install cargo-audit cargo-auditable cargo-deny cargo-outdated
+      - name: installation
+        run:  cargo install zuu --no-default-features --features cli
+      - name: zuu
+        run: git clone https://github.com/otechdo/zuu .\app && cd .\app && git checkout "${GITHUB_REF##*/}" && zuu
 
