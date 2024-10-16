@@ -12,5 +12,5 @@ cargo = [
 after-cargo = []
 
 [badge]
-success = ["curl https://img.shields.io/badge/zuu-passing-lightgreen -o zuu.svg"]
+success = ["curl https://img.shields.io/badge/zuu-passing-darkgreen -o zuu.svg"]
 failure = ["curl https://img.shields.io/badge/zuu-failure-red -o zuu.svg"]
