@@ -38,7 +38,7 @@ zuu
 }  
 ```
 
-![demo](https://raw.githubusercontent.com/otechdo/zuu/refs/heads/main/zuu-23.0.0.gif)
+![demo](https://raw.githubusercontent.com/otechdo/zuu/refs/heads/main/zuu.23.gif)
 
 
 ## Github workflow
@@ -66,7 +66,7 @@ jobs:
     - name: installation
       run:  cargo install zuu --no-default-features --features cli
     - name: zuu
-      run: git clone <repo_url> app && cd app && git checkout "${GITHUB_REF##*/}" && zuu
+      run: git checkout "${GITHUB_REF##*/}" && zuu
 ```
 
 
