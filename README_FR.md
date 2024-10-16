@@ -75,7 +75,6 @@ zuu
 ```
 
 ## Github workflow
-
 ```yaml
 name: zuu
 on:
@@ -90,14 +89,17 @@ jobs:
   zuu:
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
+        os: [ ubuntu-latest, ubuntu-22.04, ubuntu-20.04, macos-latest, macos-13, macos-12 ]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
-    - name: deps
-      run:  cargo install cargo-audit cargo-auditable cargo-deny cargo-outdated
-    - name: installation
-      run:  cargo install zuu --no-default-features --features cli
-    - name: zuu
-      run: git checkout "${GITHUB_REF##*/}" && zuu
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: deps
+        run:  cargo install cargo-audit cargo-auditable cargo-deny cargo-outdated
+      - name: installation
+        run:  cargo install zuu --no-default-features --features cli
+      - name: zuu
+        run:  git checkout "${GITHUB_REF##*/}" && zuu
 ```
