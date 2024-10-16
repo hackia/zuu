@@ -1,6 +1,6 @@
 [package]
 name = "zuu"
-version = "22.0.1"
+version = "23.0.0"
 edition = "2021"
 license = "AGPL-3.0"
 categories = ["development-tools", "development-tools::testing"]
@@ -10,9 +10,16 @@ repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
 keywords = ["lint", "quality", "prevention", "Maintainability", "optimization"]
 [dependencies]
-chrono = "0.4.38"
-colored_truecolor = "0.1.0"
-indicatif = "0.17.8"
-inquire = { version = "0.7.5", features = ["console", "editor"] }
-rand = "0.8.5"
+crossterm = { version = "0.28.1", optional = true }
+indicatif = { version = "0.17.8", optional = true }
+inquire = { version = "0.7.5", optional = true, features = [
+    "console",
+    "editor",
+] }
+ratatui = { version = "0.28.1", features = ["all-widgets"], optional = true }
 toml = "0.8.19"
+
+[features]
+default = ["ui"]
+ui = ["ratatui", "ratatui/all-widgets", "crossterm"]
+cli = ["inquire", "indicatif"]

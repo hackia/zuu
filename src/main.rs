@@ -1,411 +1,372 @@
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
-use std::fs::read_to_string;
-use std::process::{Command, Stdio};
-use std::thread;
-use std::time::Duration;
+use std::io::Write;
+use std::{
+    fs::{read_to_string, File},
+    io::Error,
+    path::Path,
+    process::{Command, ExitCode},
+};
+#[cfg(feature = "cli")]
+use std::{thread::sleep, time::Duration};
+const ZUU_STDERR_FILE: &str = "/tmp/zuu-stderr";
+const ZUU_STDOUT_FILE: &str = "/tmp/zuu-stdout";
+#[cfg(feature = "ui")]
+use crossterm::event::{self, Event, KeyCode};
+#[cfg(feature = "ui")]
+use ratatui::{
+    init,
+    layout::Alignment,
+    prelude::CrosstermBackend,
+    restore,
+    widgets::{Block, Borders, Paragraph},
+    Terminal,
+};
 use toml::Value;
 
-pub struct Bar {
-    pub bar: MultiProgress,
-    pub template: String,
-    pub style: ProgressStyle,
-    pub progress: String,
-    pub tick: Duration,
-}
-pub struct Zuu {
-    pub options: Options,
-    pub badges: Badges,
-    pub hooks: Hooks,
-    pub groups: Groups,
-    pub bar: Bar,
-}
-#[derive(Copy, Clone)]
-pub struct Options {
-    pub verify_project: bool,
-    pub format: bool,
-    pub install: bool,
-    pub clean: bool,
-    pub doc: bool,
-    pub audit: bool,
-    pub test: bool,
-    pub check: bool,
-    pub update: bool,
-    pub deny: bool,
-    pub outdated: bool,
-    pub watch: bool,
-}
-pub struct Badges {
-    pub success: String,
-    pub failure: String,
-}
+const HOOKS: [&str; 8] = [
+    "cargo verify-project",
+    "cargo check --all-targets --profile=test",
+    "cargo deny check",
+    "cargo audit",
+    "cargo test -j 4 --no-fail-fast -- --show-output",
+    "cargo fmt --check",
+    "cargo clippy -- -D clippy::pedantic -W clippy::nursery -D warnings  -D clippy::all",
+    "cargo outdated",
+];
 
-#[derive(Debug)]
-pub struct Hooks {
-    pub before_all: Vec<String>,
-    pub before_each: Vec<String>,
-    pub after_all: Vec<String>,
-    pub for_each: Vec<String>,
-    pub after_each: Vec<String>,
-}
+#[cfg(feature = "cli")]
+use indicatif::ProgressBar;
+#[cfg(feature = "ui")]
+use std::io::Stdout;
 
-pub struct Groups {
-    pub allow: Vec<String>,
-    pub warn: Vec<String>,
-    pub forbid: Vec<String>,
-}
-
-fn groups() -> Groups {
-    let mut configuration: Groups = Groups {
-        allow: Vec::new(),
-        warn: Vec::new(),
-        forbid: Vec::new(),
-    };
-    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
-    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
-    if let Some(groups) = values.get("groups") {
-        if let Some(groups) = groups.as_table() {
-            if let Some(allow) = groups.get("allow") {
-                if let Some(allow) = allow.as_array() {
-                    let mut x: Vec<String> = Vec::new();
-                    for a in allow {
-                        x.push(a.to_string());
-                    }
-                    configuration.allow = x;
-                }
-            }
-            if let Some(warn) = groups.get("warn") {
-                if let Some(warn) = warn.as_array() {
-                    let mut x: Vec<String> = Vec::new();
-                    for a in warn {
-                        x.push(a.to_string());
-                    }
-                    configuration.warn = x;
-                }
-            }
-            if let Some(forbid) = groups.get("forbid") {
-                if let Some(forbid) = forbid.as_array() {
-                    let mut x: Vec<String> = Vec::new();
-                    for a in forbid {
-                        x.push(a.to_string());
-                    }
-                    configuration.forbid = x;
-                }
-            }
-        }
-    }
-    configuration
-}
-fn hooks() -> Hooks {
-    let mut configuration: Hooks = Hooks {
-        before_all: Vec::new(),
-        before_each: Vec::new(),
-        after_all: Vec::new(),
-        for_each: Vec::new(),
-        after_each: Vec::new(),
-    };
-    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
-    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
-    if let Some(options) = values.get("hooks") {
-        if let Some(options) = options.as_table() {
-            if let Some(before_all) = options.get("before-all") {
-                if let Some(before_all) = before_all.as_array() {
-                    let mut x: Vec<String> = Vec::new();
-                    for before in before_all {
-                        if let Some(b) = before.as_table() {
-                            if let Some(c) = b.get("command")
-                            {
-                                dbg!(c);
-                            }
-                            if let Some(command) = b.get("before-run") {
-                                if let Some(command) = command.as_str() {
-                                    dbg!(command);
-                                    x.push(command.to_string());
-                                }
-                            }
-                        }
-                    }
-                    configuration.before_all = x;
-                }
-            }
-            if let Some(after_all) = options.get("after-all") {
-                if let Some(after_all) = after_all.as_array() {
-                    let mut x: Vec<String> = Vec::new();
-                    for after in after_all {
-                        if let Some(a) = after.as_str() {
-                            x.push(a.to_string());
-                        }
-                    }
-                    configuration.after_all = x;
-                }
-            }
-            if let Some(before_each) = options.get("before-each") {
-                if let Some(before_each) = before_each.as_array() {
-                    let mut x: Vec<String> = Vec::new();
-                    for before in before_each {
-                        if let Some(b) = before.as_str() {
-                            x.push(b.to_string());
-                        }
-                    }
-                    configuration.before_each = x;
-                }
-            }
-            if let Some(for_each) = options.get("for-each") {
-                if let Some(for_each) = for_each.as_array() {
-                    let mut x: Vec<String> = Vec::new();
-                    for each in for_each {
-                        if let Some(each) = each.as_str() {
-                            x.push(each.to_string());
-                        }
-                    }
-                    configuration.for_each = x;
-                }
-            }
-            if let Some(after_each) = options.get("after-each") {
-                if let Some(after_each) = after_each.as_array() {
-                    let mut x: Vec<String> = Vec::new();
-                    for each in after_each {
-                        if let Some(each) = each.as_str() {
-                            x.push(each.to_string());
-                        }
-                    }
-                    configuration.after_each = x;
-                }
-            }
-        }
-    }
-    configuration
-}
-fn options() -> Options {
-    let mut configuration: Options = Options {
-        verify_project: false,
-        format: false,
-        install: false,
-        clean: false,
-        doc: false,
-        audit: false,
-        test: false,
-        check: false,
-        update: false,
-        deny: false,
-        outdated: false,
-        watch: false,
-    };
-    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
-    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
-    if let Some(options) = values.get("options") {
-        if let Some(options) = options.as_table() {
-            if let Some(format) = options.get("format") {
-                if let Some(format) = format.as_bool() {
-                    configuration.format = format;
-                }
-            }
-            if let Some(verify_project) = options.get("verify-project") {
-                if let Some(verify_project) = verify_project.as_bool() {
-                    configuration.verify_project = verify_project;
-                }
-            }
-            if let Some(install) = options.get("install") {
-                if let Some(install) = install.as_bool() {
-                    configuration.install = install;
-                }
-            }
-            if let Some(clean) = options.get("clean") {
-                if let Some(clean) = clean.as_bool() {
-                    configuration.clean = clean;
-                }
-            }
-            if let Some(doc) = options.get("doc") {
-                if let Some(doc) = doc.as_bool() {
-                    configuration.doc = doc;
-                }
-            }
-            if let Some(audit) = options.get("audit") {
-                if let Some(audit) = audit.as_bool() {
-                    configuration.audit = audit;
-                }
-            }
-            if let Some(test) = options.get("test") {
-                if let Some(test) = test.as_bool() {
-                    configuration.test = test;
-                }
-            }
-            if let Some(check) = options.get("check") {
-                if let Some(check) = check.as_bool() {
-                    configuration.check = check;
-                }
-            }
-            if let Some(update) = options.get("update") {
-                if let Some(update) = update.as_bool() {
-                    configuration.update = update;
-                }
-            }
-            if let Some(deny) = options.get("deny") {
-                if let Some(deny) = deny.as_bool() {
-                    configuration.deny = deny;
-                }
-            }
-            if let Some(outdated) = options.get("outdated") {
-                if let Some(outdated) = outdated.as_bool() {
-                    configuration.outdated = outdated;
-                }
-            }
-            if let Some(watch) = options.get("watch") {
-                if let Some(watch) = watch.as_bool() {
-                    configuration.watch = watch;
-                }
-            }
-        }
-    }
-    configuration
-}
-
-fn badges() -> Badges {
-    let mut configuration: Badges = Badges {
-        success: "".to_string(),
-        failure: "".to_string(),
-    };
-    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
-    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
-    if let Some(config) = values.get("badges") {
-        if let Some(config) = config.as_table() {
-            if let Some(success) = config.get("success") {
-                if let Some(success) = success.as_str() {
-                    configuration.success = success.to_string();
-                }
-            }
-            if let Some(failure) = config.get("failure") {
-                if let Some(failure) = failure.as_str() {
-                    configuration.failure = failure.to_string();
-                }
-            }
-        }
-    }
-    configuration
-}
-fn bar_template() -> String {
-    let x = String::new();
-    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
-    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
-    if let Some(config) = values.get("bar") {
-        if let Some(template) = config.get("template") {
-            if let Some(template) = template.as_str() {
-                return template.to_string();
-            }
-        }
-    }
-    x
-}
-fn bar_progress() -> String {
-    let x = String::new();
-    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
-    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
-    if let Some(config) = values.get("bar") {
-        if let Some(progress) = config.get("progress") {
-            if let Some(progress) = progress.as_str() {
-                return progress.to_string();
-            }
-        }
-    }
-    x
-}
-fn bar_style() -> ProgressStyle {
-    if let Ok(x) = ProgressStyle::with_template(bar_template().as_str()) {
-        return x;
-    }
-    ProgressStyle::default_spinner()
-}
-fn zuu() -> Zuu {
-    Zuu {
-        options: options(),
-        badges: badges(),
-        hooks: hooks(),
-        groups: groups(),
-        bar: Bar {
-            bar: MultiProgress::new(),
-            template: bar_template(),
-            style: bar_style(),
-            progress: bar_progress(),
-            tick: Duration::from_millis(100),
-        },
-    }
-}
-
-fn exec(verb: String, args: &[&str]) -> bool {
-    if let Ok(mut x) = Command::new("cargo")
-        .arg(verb)
-        .args(args)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .current_dir(".")
-        .spawn()
-    {
-        if let Ok(status) = x.wait() {
-            return status.success().eq(&true);
-        }
-        return false;
-    }
-    false
-}
 fn shell_exec(c: &str) -> bool {
-    if let Ok(mut child) = Command::new("sh")
-        .arg("-c")
-        .arg(c)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+    let x: Vec<&str> = c.split_whitespace().collect();
+    if let Ok(child) = Command::new("sh")
+        .args(["-c", x.join(" ").as_str()])
+        .stdout(File::create(ZUU_STDOUT_FILE).expect("failed to create file"))
+        .stderr(File::create(ZUU_STDERR_FILE).expect("failed to create file"))
         .current_dir(".")
-        .spawn()
+        .output()
     {
-        if let Ok(s) = child.wait() {
-            return s.success();
-        }
+        return child.status.success();
     }
     false
 }
 
-fn bar(
-    tick: Duration,
-    style: &ProgressStyle,
-    len: u64,
-    message: String,
-    end_message: String,
-) -> ProgressBar {
-    let pb: ProgressBar = ProgressBar::new(len);
-    pb.enable_steady_tick(tick);
-    pb.set_style(style.clone());
-    pb.set_message(message);
-    pb.finish_with_message(end_message);
-    pb
+#[cfg(feature = "cli")]
+fn zuu_cli() -> Result<(), Error> {
+    #[cfg(target_os = "linux")]
+    assert!(Command::new("clear").spawn().is_ok());
+    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
+    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
+    let before_cargo = values.get("before-cargo");
+    let after_cargo = values.get("after-cargo");
+    let cargo = values.get("cargo");
+    if let Some(data) = before_cargo {
+        let hooks = data.as_array().expect("msg");
+        let pb = ProgressBar::new_spinner().with_message("run pre cargo hooks");
+        pb.enable_steady_tick(Duration::from_millis(100));
+        for hook in hooks {
+            if let Some(h) = hook.as_str() {
+                if shell_exec(h) {
+                    pb.inc(1);
+                    sleep(Duration::from_secs(1));
+                } else {
+                    return error();
+                }
+            }
+        }
+        pb.finish_and_clear();
+    }
+    if let Some(data) = cargo {
+        let hooks = data.as_array().expect("msg");
+        let pb = ProgressBar::new_spinner().with_message("run cargo hooks");
+        pb.enable_steady_tick(Duration::from_millis(100));
+        for hook in hooks {
+            if let Some(h) = hook.as_str() {
+                if shell_exec(h) {
+                    pb.inc(1);
+                    sleep(Duration::from_secs(1));
+                } else {
+                    return error();
+                };
+            }
+        }
+        pb.finish_and_clear();
+    }
+    if let Some(data) = after_cargo {
+        let hooks = data.as_array().expect("msg");
+        let pb = ProgressBar::new(hooks.len() as u64).with_message("run post cargo hooks");
+        pb.enable_steady_tick(Duration::from_millis(100));
+        for hook in hooks {
+            if let Some(h) = hook.as_str() {
+                if shell_exec(h) {
+                    pb.inc(1);
+                    sleep(Duration::from_secs(1));
+                } else {
+                    return error();
+                }
+            }
+        }
+        pb.finish_and_clear();
+    }
+    if let Some(data) = after_cargo {
+        let hooks = data.as_array().expect("msg");
+        let pb = ProgressBar::new(hooks.len() as u64).with_message("run post cargo hooks");
+        pb.enable_steady_tick(Duration::from_millis(100));
+        for hook in hooks {
+            if let Some(h) = hook.as_str() {
+                if shell_exec(h) {
+                    pb.inc(1);
+                    sleep(Duration::from_secs(1));
+                } else {
+                    return error();
+                }
+            }
+        }
+        pb.finish_and_clear();
+    }
+    assert!(gen_badges(true).is_ok());
+    Ok(())
 }
 
-fn run_hook(verb: &str, x: &Vec<String>, o: &MultiProgress) {
-    for (index, hook) in x.iter().enumerate() {
-        if shell_exec(hook.as_str()) {
-            assert!(o
-                .println(format!(
-                    "{verb} hook n°{index} has been executed successfully"
-                ))
-                .is_ok());
-        } else {
-            assert!(o
-                .println(format!(
-                    "{verb} hook n°{index} failed to execute the hook {hook}"
-                ))
-                .is_ok());
+fn generate_zuu() -> Result<(), Error> {
+    use std::{fs::remove_file, path::Path};
+
+    if Path::new("zuu.toml").exists() {
+        remove_file("zuu.toml")?;
+    }
+    let mut zuu: File = File::create_new("zuu.toml")?;
+
+    assert!(write!(
+        zuu,
+        "before-cargo = []\ncargo = {HOOKS:?}\nafter-cargo = []\n\n[badge]\nsuccess = [\"curl https://img.shields.io/badge/zuu-success-green -o zuu.svg\"]\nfailure = [\"curl https://img.shields.io/badge/zuu-failure-red -o zuu.svg\"]").is_ok());
+    Ok(())
+}
+#[cfg(feature = "ui")]
+fn run_zuu() -> Result<(), Error> {
+    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
+    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
+    let before_cargo = values.get("before-cargo");
+    let after_cargo = values.get("after-cargo");
+    let cargo = values.get("cargo");
+    if let Some(data) = before_cargo {
+        let hooks = data.as_array().expect("msg");
+
+        for hook in hooks {
+            if let Some(h) = hook.as_str() {
+                if shell_exec(h) {
+                    continue;
+                }
+                return error();
+            }
         }
     }
-}
-fn main() -> std::io::Result<()> {
-    dbg!(hooks());
-    let app: Zuu = zuu();
-    let output = app.bar.bar;
-    let mut threads = vec![];
-    run_hook("before all", &app.hooks.before_all, &output);
-    for _i in 0..=10 {
-        threads.push(thread::spawn(move || {}));
+    if let Some(data) = cargo {
+        let hooks = data.as_array().expect("msg");
+        for hook in hooks {
+            if let Some(h) = hook.as_str() {
+                if shell_exec(h) {
+                    continue;
+                }
+                return error();
+            }
+        }
     }
-    for thread in threads {
-        let _ = thread.join();
+    if let Some(data) = after_cargo {
+        let hooks = data.as_array().expect("msg");
+        for hook in hooks {
+            if let Some(h) = hook.as_str() {
+                if shell_exec(h) {
+                    continue;
+                }
+                return error();
+            }
+        }
     }
-    run_hook("after all", &app.hooks.after_all, &output);
+    if let Some(data) = after_cargo {
+        let hooks = data.as_array().expect("msg");
+        for hook in hooks {
+            if let Some(h) = hook.as_str() {
+                if shell_exec(h) {
+                    continue;
+                }
+                return error();
+            }
+        }
+    }
     Ok(())
+}
+#[cfg(feature = "ui")]
+fn zuu_ui() -> Result<(), Error> {
+    let mut term: Terminal<CrosstermBackend<Stdout>> = init();
+    term.clear().expect("failed to clear screen");
+    term.set_cursor_position((0, 0))
+        .expect("failed to restore pos of cursor");
+    assert!(term
+        .draw(|f| {
+            f.render_widget(
+                Paragraph::new(
+                    "F2     ==> Check source code\nEsc    ==> Exit\nArrows ==> Navigate in errors",
+                )
+                .block(
+                    Block::default()
+                        .title(" Zuu ")
+                        .title_alignment(Alignment::Center)
+                        .borders(Borders::all()),
+                ),
+                f.area(),
+            );
+        })
+        .is_ok());
+    let mut success: Result<(), Error> = Err(Error::other("default to error"));
+    let mut v: u16 = 0;
+    let mut h: u16 = 0;
+    loop {
+        if let Event::Key(key) = event::read().expect("msg") {
+            if key.code == KeyCode::Esc {
+                break;
+            } else if key.code == KeyCode::F(2) {
+                assert!(term
+                    .draw(|f| {
+                        f.render_widget(
+                            Paragraph::new("Checking source code...").block(
+                                Block::default()
+                                    .title(" Zuu ")
+                                    .title_alignment(Alignment::Center)
+                                    .borders(Borders::all()),
+                            ),
+                            f.area(),
+                        );
+                    })
+                    .is_ok());
+                success = run_zuu();
+                if success.is_err() {
+                    loop {
+                        assert!(term
+                            .draw(|f| {
+                                f.render_widget(
+                                    Paragraph::new(read_to_string(ZUU_STDERR_FILE).expect(""))
+                                        .block(
+                                            Block::default()
+                                                .borders(Borders::all())
+                                                .title(" Zuu ")
+                                                .title_alignment(Alignment::Center),
+                                        )
+                                        .scroll((v, h)),
+                                    f.area(),
+                                );
+                            })
+                            .is_ok());
+
+                        if let Event::Key(key) = event::read().expect("msg") {
+                            if key.code == KeyCode::Down {
+                                v += 1;
+                            } else if key.code == KeyCode::Up {
+                                if v.gt(&0) {
+                                    v -= 1;
+                                }
+                            } else if key.code == KeyCode::Left {
+                                if h.gt(&0) {
+                                    h -= 1;
+                                }
+                            } else if key.code == KeyCode::Right {
+                                h += 1;
+                            } else if key.code == KeyCode::Esc {
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    assert!(term
+                        .draw(|f| {
+                            f.render_widget(
+                                Paragraph::new("code can be commited").block(
+                                    Block::default()
+                                        .title(" Zuu ")
+                                        .title_alignment(Alignment::Center)
+                                        .borders(Borders::all()),
+                                ),
+                                f.area(),
+                            );
+                        })
+                        .is_ok());
+                }
+            }
+        }
+    }
+
+    restore();
+    gen_badges(success.is_ok())
+}
+
+fn error() -> Result<(), Error> {
+    Err(Error::other(
+        read_to_string(ZUU_STDERR_FILE)
+            .expect("No founded error file")
+            .as_str(),
+    ))
+}
+
+fn gen_badges(success: bool) -> Result<(), Error> {
+    let key = if success { "success" } else { "failure" };
+    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
+    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
+    let badges = values.get("badge");
+    if let Some(data) = badges {
+        let hooks = data.as_table().expect("msg");
+        let hook = hooks.get(key);
+        #[cfg(feature = "cli")]
+        let pb = ProgressBar::new_spinner().with_message(format!("run {key} badge generation"));
+        #[cfg(feature = "cli")]
+        pb.enable_steady_tick(Duration::from_millis(100));
+        if let Some(hooks) = hook {
+            let data = hooks.as_array().expect("msg");
+            for to in data {
+                if let Some(h) = to.as_str() {
+                    if shell_exec(h) {
+                        #[cfg(feature = "cli")]
+                        pb.inc(1);
+                        #[cfg(feature = "cli")]
+                        sleep(Duration::from_secs(1));
+                        continue;
+                    }
+                    return Err(Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        read_to_string(ZUU_STDERR_FILE)
+                            .expect("No founded error file")
+                            .as_str(),
+                    ));
+                }
+            }
+        }
+        #[cfg(feature = "cli")]
+        pb.finish_and_clear();
+        return Ok(());
+    }
+    return Err(Error::new(
+        std::io::ErrorKind::InvalidData,
+        read_to_string(ZUU_STDERR_FILE)
+            .expect("No founded error file")
+            .as_str(),
+    ));
+}
+
+fn main() -> ExitCode {
+    if Path::new("zuu.toml").exists().eq(&false) {
+        assert!(generate_zuu().is_ok());
+    }
+    #[cfg(feature = "ui")]
+    return match zuu_ui() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(_) => ExitCode::FAILURE,
+    };
+
+    #[cfg(feature = "cli")]
+    return match zuu_cli() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("{e}");
+            ExitCode::FAILURE
+        }
+    };
 }

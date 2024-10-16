@@ -1,111 +1,16 @@
-[options]
-verify-project = true
-format = true
-install = true
-clean = false
-doc = false
-audit = true
-test = true
-check = true
-update = true
-deny = true
-outdated = true
-watch = true
-
-[badges]
-success = "curl https://img.shields.io/badge/zuu-passing-brightgreen -o zuu.svg"
-failure = "curl https://img.shields.io/badge/zuu-failure-red -o zuu.svg"
-
-[hooks]
-before-all = [
-    { format = { command = "cargo fmt", before-run = "Formating source code", on-success = "Source code formated successfully", on-failure = "Fail to format source code" } },
-    { update = { command = "cargo update", before-run = "Updating source code", on-success = "Source code updated successfully", on-failure = "Fail to update source code" } }
+before-cargo = ["cargo fmt"]
+cargo = [
+    "cargo verify-project",
+    "cargo check --all-targets --profile=test",
+    "cargo deny check",
+    "cargo audit",
+    "cargo test -j 4 --no-fail-fast -- --show-output",
+    "cargo fmt --check",
+    "cargo clippy -- -D clippy::pedantic -W clippy::nursery -D warnings  -D clippy::all",
+    "cargo outdated",
 ]
-before-each = []
-after-each = []
-after-all = [
-    { install = { command = "cargo install --path .", before-run = "Installing zuu", on-success = "zuu installed successfully", on-failure = "failed to install zuu" } }
-]
-for-each = []
+after-cargo = []
 
-[groups]
-allow = ["cargo"]
-warn = []
-forbid = [
-    "nursery",
-    "perf",
-    "complexity",
-    "style",
-    "pedantic",
-    "suspicious",
-    "correctness",
-]
-
-[bar]
-template = "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}"
-progress = "==-"
-
-[branches]
-update = ["main", "develop"]
-
-[pr]
-title_template = "chore(deps): update dependencies"
-body_template = """
-This pull request updates the following dependencies:
-
-{{#each updated_crates}}
-* {{ this.name }} from {{ this.old_version }} to {{ this.new_version }}
-{{/each}}
-"""
-labels = ["dependencies", "zuu"]
-assignees = ["your_username"]
-reviewers = ["another_user"]
-
-[commit]
-message_template = "{{type}}({{scope}}): {{description}}"
-lang = "en_US"
-scope = ["deps", "config", "build", "ci", "tests", "docs", "style", "refactor", "perf", "security", "api", "ui", "database", "auth", "logging", "networking"]
-type = [
-    { Feat = { help = "New feature or enhancement", emoji = "✨", notes = "Used for new features or significant improvements to existing code.", examples = ["Feat: Add dark mode support", "Feat(API): Introduce new endpoint for user profile updates"] } },
-    { Overhaul = { help = "Major, transformative change or complete rewrite", emoji = "💥", breaking_change = true, notes = "Reserved for significant changes that substantially affect the structure or behavior of the code, and that may cause compatibility issues with previous versions.", examples = ["Overhaul: Migrate to a new database architecture", "Overhaul(UI): Redesign the entire user interface"] } },
-    { Fix = { help = "Bug fix or error resolution", emoji = "🐛", notes = "Used for bug fixes, typos, and other minor issues.", examples = ["Fix: Resolve crash on login", "Fix: Correct typo in error message"] } }, { Refactor = { help = "Code refactoring without changing external behavior", emoji = "🔨", notes = "Apply when you improve the structure, readability, or maintainability of the code without changing its external behavior.", examples = ["Refactor: Extract common logic into a reusable function", "Refactor(Payment): Improve code organization for better clarity"] } },
-    { Optimize = { help = "Performance improvement or optimization", emoji = "🚀", notes = "Reserved for changes that measurably improve the performance of the code.", examples = ["Optimize: Reduce database query execution time", "Optimize(Rendering): Cache results to improve loading speed"] } },
-    { Docs = { help = "Documentation updates or improvements", emoji = "📚", notes = "Used for changes to documentation, comments, or explanatory strings.", examples = ["Docs: Update README with clearer installation instructions", "Docs: Add inline comments to complex functions"] } },
-    { Cleanup = { help = "Code cleanup, removing dead code, or improving readability", emoji = "🧹", notes = "For changes that improve code quality without affecting functionality, such as removing unused code, fixing indentation, or renaming variables.", examples = ["Cleanup: Remove unused imports and variables", "Cleanup(Auth): Improve code consistency and formatting"] } },
-    { Release = { help = "Deploying to production or releasing a new version", emoji = "🚀", notes = "Indicates a commit that deploys the code to production or releases a new version of the software.", examples = ["Release: Deploy version 1.2.0 to production", "Release: Publish new npm package"] } },
-    { Hotfix = { help = "Urgent fix for a critical issue in production", emoji = "🚑", notes = "Reserved for urgent fixes deployed to production to address critical issues.", examples = ["Hotfix: Fix security vulnerability in login form", "Hotfix: Resolve server crash"] } },
-    { Explore = { help = "Research, prototyping, or experimenting with new technologies or approaches", emoji = "🔬", notes = "Used for exploratory commits that are not intended to be directly integrated into the main codebase.", examples = ["Explore: Evaluate using GraphQL for the API", "Explore: Prototype a new drag-and-drop feature"] } },
-    { Test = { help = "Adding, modifying, or refactoring tests", emoji = "✅", notes = "For changes related to tests, whether adding new tests, modifying existing ones, or refactoring them.", examples = ["Test: Add unit tests for the new search component", "Test: Refactor integration tests for better maintainability"] } },
-    { Chore = { help = "Maintenance tasks or changes that don't affect code functionality (e.g., updating dependencies)", emoji = "🔧", notes = "For changes that don't change the behavior of the code, such as updating dependencies, modifying configuration files, or fixing typos in documentation.", examples = ["Chore: Update project dependencies", "Chore: Fix typos in README"] } },
-    { Revert = { help = "Reverting a previous commit", emoji = "⏪", notes = "Used to undo the changes made by a previous commit.", examples = ["Revert: Undo accidental deletion of important file", "Revert: Roll back changes that caused a regression"] } },
-    { Build = { help = "Changes to the build system, configuration, or dependencies", emoji = "📦", notes = "For changes made to the build system, configuration files, or project dependencies.", examples = ["Build: Add a new dependency for logging", "Build: Configure the build process for a new environment"] } },
-    { CI = { help = "Changes to CI/CD pipelines or scripts", emoji = "🤖", notes = "Reserved for changes made to continuous integration or continuous deployment pipelines.", examples = ["CI: Add a deployment step to the pipeline", "CI: Configure notifications for build failures"] } },
-    { Style = { help = "Code style changes (formatting, whitespace, etc.)", emoji = "🎨", notes = "For changes that only affect the style of the code, such as formatting, indentation, or whitespace, without modifying its behavior.", examples = ["Style: Apply automatic formatting to the code", "Style: Fix inconsistent indentation"] } },
-    { Init = { help = "Initial commit or project setup", emoji = "🎉", notes = "Used for the first commit of a project or for commits that initially set up the project.", examples = ["Init: Create initial project structure and add README", "Init: Set up basic configuration files"] } },
-    { Update = { help = "General updates or modifications to existing code or features", emoji = "✏️", notes = "A generic commit type for changes that don't fit other more specific categories.", examples = ["Update: Improve error handling in the payment module", "Update: Refine user interface styling"] } },
-    { Deprecate = { help = "Marking code as deprecated or scheduled for removal", emoji = "🗑️", notes = "Indicates that parts of the code are deprecated and will likely be removed in a future version.", examples = ["Deprecate: Mark the old API as deprecated", "Deprecate: Schedule removal of unused configuration option"] } },
-    { Security = { help = "Addressing security vulnerabilities or concerns", emoji = "🔒", notes = "For commits that fix security issues, such as vulnerabilities or exploits.", examples = ["Security: Fix XSS vulnerability in login form", "Security: Update dependencies to address known security issues"] } },
-    { Config = { help = "Changes to configuration files or settings", emoji = "⚙️", notes = "Used for changes made to configuration files or project settings.", examples = ["Config: Add a new configuration option for the theme", "Config: Update database connection settings"] } },
-    { Upgrade = { help = "Upgrading dependencies or tools", emoji = "⬆️", notes = "For commits that upgrade project dependencies or tools used in development.", examples = ["Upgrade: Upgrade React to the latest version", "Upgrade: Update build tools to improve performance"] } },
-    { I18n = { help = "Internationalization (i18n) improvements", emoji = "🌐", notes = "For changes that improve support for multiple languages in the project.", examples = ["I18n: Add support for new languages", "I18n: Extract translatable strings"] } },
-    { L10n = { help = "Localization (l10n) improvements", emoji = "🗺️", notes = "For changes that adapt the project to a specific language or region.", examples = ["L10n: Translate strings into French", "L10n: Update localized date formats"] } },
-    { Access = { help = "Accessibility improvements", emoji = "♿", notes = "For changes that improve the accessibility of the project for users with disabilities.", examples = ["Access: Improve color contrast for visually impaired users", "Access: Add keyboard navigation support"] } },
-    { Analytics = { help = "Adding or modifying analytics tracking", emoji = "📈", notes = "Used for changes related to analytics, such as adding or modifying event tracking.", examples = ["Analytics: Add tracking for button clicks", "Analytics: Integrate new analytics provider"] } },
-    { Animation = { help = "Work on animations or transitions", emoji = "💫", notes = "For changes made to animations, transitions, or visual effects.", examples = ["Animation: Add smooth transition to dropdown menu", "Animation: Improve loading animation"] } },
-    { Arch = { help = "Changes to the project architecture", emoji = "🏗️", notes = "Reserved for significant changes in the project architecture, such as refactoring modules or modifying the overall structure.", examples = ["Arch: Migrate to a microservices architecture", "Arch: Introduce a new layer for data access"] } },
-    { Asset = { help = "Adding or modifying assets (images, fonts, etc.)", emoji = "🖼️", notes = "For adding, modifying, or deleting assets such as images, icons, fonts, etc.", examples = ["Asset: Add new logo", "Asset: Update favicon"] } },
-    { Breaking = { help = "Breaking change", emoji = "🚨", breaking_change = true, notes = "Indicates a change that may cause compatibility issues with previous versions of the software.", examples = ["Breaking: Change API endpoint URL", "Breaking: Remove deprecated function"] } },
-    { Comment = { help = "Adding or modifying comments", emoji = "💬", notes = "For adding, modifying, or deleting comments in the code.", examples = ["Comment: Add explanations to complex logic", "Comment: Update outdated comments"] } },
-    { Data = { help = "Work on data or data structures", emoji = "🗃️", notes = "Used for changes related to data, databases, data structures, etc.", examples = ["Data: Optimize database schema", "Data: Add new data validation rules"] } },
-    { Debug = { help = "Debugging or troubleshooting", emoji = "🐞", notes = "For commits that fix bugs or resolve issues in the code.", examples = ["Debug: Fix memory leak", "Debug: Resolve race condition"] } }, { Design = { help = "Changes to the user interface or user experience", emoji = "🎨", notes = "For changes that affect the appearance or behavior of the user interface.", examples = ["Design: Improve layout of the registration form", "Design: Add new color scheme"] } },
-    { Lint = { help = "Changes related to linting or code formatting", emoji = "🚨", notes = "For changes related to linter configuration, fixing linter warnings, or code formatting.", examples = ["Lint: Fix linter warnings", "Lint: Enforce new code style rules"] } },
-    { Merge = { help = "Merging branches or resolving conflicts", emoji = "🔀", notes = "Indicates a commit that merges branches or resolves merge conflicts.", examples = ["Merge: Merge 'feature/new-feature' into 'main'", "Merge: Resolve conflicts in UI component"] } },
-    { Mock = { help = "Adding or modifying mocks or stubs", emoji = "🎭", notes = "For changes made to mocks or stubs used in tests.", examples = ["Mock: Create a mock for the payment service", "Mock: Update mock data for API responses"] } },
-    { Move = { help = "Moving or renaming files or directories", emoji = "🚚", notes = "Used when you move or rename files or directories within the project.", examples = ["Move: Move 'Button' component to a new directory", "Move: Rename 'utils.js' to 'helpers.js'"] } },
-    { Perf = { help = "Performance improvement", emoji = "⚡", notes = "For changes that significantly improve the performance of the code.", examples = ["Perf: Reduce loading time of the homepage", "Perf: Optimize image compression"] } },
-    { Remove = { help = "Removing code or features", emoji = "🔥", notes = "Indicates the removal of code, features, or files that are no longer needed.", examples = ["Remove: Delete unused chat functionality", "Remove: Remove deprecated API endpoint"] } },
-    { Seed = { help = "Adding or modifying seed data", emoji = "🌱", notes = "Used for changes made to seed data used to initialize a database or a test environment.", examples = ["Seed: Add test data for users", "Seed: Update product data for the demo environment"] } },
-    { Types = { help = "Changes to types or interfaces", emoji = "🏷️", notes = "For changes made to type definitions, interfaces, or data structures.", examples = ["Types: Add new type for representing products", "Types: Modify interface for payment gateway"] } },
-]
-
-
+[badge]
+success = ["curl https://img.shields.io/badge/zuu-success-green -o zuu.svg"]
+failure = ["curl https://img.shields.io/badge/zuu-failure-red -o zuu.svg"]
