@@ -16,7 +16,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: deps
-      run:  cargo install cargo audit cargo-deny cargo-outaded
+      run:  cargo install cargo-audit cargo-deny cargo-outaded
     - name: installation
       run:  cargo install zuu --no-default-features --features cli
     - name: zuu
