@@ -1,16 +1,8 @@
-before-cargo = ["cargo fmt"]
-cargo = [
-    "cargo verify-project",
-    "cargo check --all-targets --profile=test",
-    "cargo deny check",
-    "cargo audit",
-    "cargo test -j 4 --no-fail-fast -- --show-output",
-    "cargo fmt --check",
-    "cargo clippy -- -D clippy::pedantic -W clippy::nursery -D warnings  -D clippy::all",
-    "cargo outdated",
-]
-after-cargo = []
-
-[badge]
-success = ["curl https://img.shields.io/badge/zuu-passing-darkgreen -o zuu.svg"]
-failure = ["curl https://img.shields.io/badge/zuu-failure-red -o zuu.svg"]
+[rust]
+format = true
+test = true
+lint = true
+coverage = true
+audit = true
+license = true
+dependencies = true

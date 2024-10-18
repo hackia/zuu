@@ -1,17 +1,20 @@
-# Zuu
+<div align="center">
 
-[FR](README_FR.md)
-
-**Zuu** is a command-line tool designed to streamline and enhance code verification for Rust projects. It leverages a `zuu.toml` configuration file at the project's root, allowing developers to define a series of checks and actions to be executed before, during, and after `cargo` commands.
-
-**Think of it as a supercharged Makefile for your Rust code quality checks!**
+![zuu](zuu.png)
 
 [![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/otechdo/zuu/zuu.yml?branch=main&style=flat&logo=github&logoColor=grey&label=Workflow&labelColor=white&color=white)](https://github.com/otechdo/zuu/actions/workflows/zuu.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/otechdo/zuu?include_prereleases&sort=semver&display_name=tag&style=flat&logo=rust&logoColor=grey&label=Release&labelColor=white&color=white)](https://github.com/otechdo/zuu/releases)
 [![GitHub License](https://img.shields.io/github/license/otechdo/zuu?style=flat&logo=rust&logoColor=grey&label=License&labelColor=white&color=white)](https://github.com/otechdo/zuu/blob/main/LICENSE)
 
+</div>
 
-<img src="logo.png" alt="zuu" width ="300" height="300" align="right"/>
+# Zuu
+
+
+**Zuu** is a command-line tool designed to streamline and enhance code verification for Rust projects. It leverages a `zuu.toml` configuration file at the project's root, allowing developers to define a series of checks and actions to be executed before, during, and after `cargo` commands.
+
+**Think of it as a supercharged Makefile for your Rust code quality checks!**
+
 
 ## Key Features
 

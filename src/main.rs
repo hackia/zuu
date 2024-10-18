@@ -1,14 +1,55 @@
+use core::str;
 use std::io::Write;
 use std::{
     fs::{read_to_string, File},
     io::Error,
     path::Path,
-    process::{Command, ExitCode},
+    process::Command,
 };
+
 #[cfg(feature = "cli")]
 use std::{thread::sleep, time::Duration};
 const ZUU_STDERR_FILE: &str = "/tmp/zuu-stderr";
 const ZUU_STDOUT_FILE: &str = "/tmp/zuu-stdout";
+
+pub mod bash;
+pub mod c;
+pub mod clojure;
+pub mod cobol;
+pub mod crystal;
+pub mod dart;
+pub mod elixir;
+pub mod erlang;
+pub mod f_sharp;
+pub mod fortran;
+pub mod go;
+pub mod groovy;
+pub mod haskell;
+pub mod java;
+pub mod julia;
+pub mod kotlin;
+pub mod lua;
+pub mod matlab;
+pub mod nim;
+pub mod objective_c;
+pub mod perl;
+pub mod php;
+pub mod r;
+pub mod ruby;
+pub mod rust;
+pub mod scala;
+pub mod swift;
+pub mod typescript;
+pub mod utils;
+pub mod vlang;
+
+#[cfg(feature = "d")]
+pub mod d;
+pub mod ocaml;
+pub mod python;
+pub mod tcl;
+pub mod vhdl;
+
 #[cfg(feature = "ui")]
 use crossterm::event::{self, Event, KeyCode};
 #[cfg(feature = "ui")]
@@ -22,26 +63,13 @@ use ratatui::{
 };
 use toml::Value;
 
-const HOOKS: [&str; 8] = [
-    "cargo verify-project",
-    "cargo check --all-targets --profile=test",
-    "cargo deny check",
-    "cargo audit",
-    "cargo test -j 4 --no-fail-fast -- --show-output",
-    "cargo fmt --check",
-    "cargo clippy -- -D clippy::pedantic -W clippy::nursery -D warnings  -D clippy::all",
-    "cargo outdated",
-];
-
 #[cfg(feature = "cli")]
 use indicatif::ProgressBar;
 #[cfg(feature = "ui")]
 use std::io::Stdout;
 
-fn shell_exec(c: &str) -> bool {
-    let x: Vec<&str> = c.split_whitespace().collect();
-    if let Ok(child) = Command::new("sh")
-        .args(["-c", x.join(" ").as_str()])
+fn shell(filename: &str) -> bool {
+    if let Ok(child) = Command::new(filename)
         .stdout(File::create(ZUU_STDOUT_FILE).expect("failed to create file"))
         .stderr(File::create(ZUU_STDERR_FILE).expect("failed to create file"))
         .current_dir(".")
@@ -139,55 +167,19 @@ fn generate_zuu() -> Result<(), Error> {
 
     assert!(write!(
         zuu,
-        "before-cargo = []\ncargo = {HOOKS:?}\nafter-cargo = []\n\n[badge]\nsuccess = [\"curl https://img.shields.io/badge/zuu-success-green -o zuu.svg\"]\nfailure = [\"curl https://img.shields.io/badge/zuu-failure-red -o zuu.svg\"]").is_ok());
+        "hooks = []\n\n[badge]\nsuccess = [\"curl https://img.shields.io/badge/zuu-success-green -o zuu.svg\"]\nfailure = [\"curl https://img.shields.io/badge/zuu-failure-red -o zuu.svg\"]").is_ok());
     Ok(())
 }
 #[cfg(feature = "ui")]
 fn run_zuu() -> Result<(), Error> {
     let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
     let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
-    let before_cargo = values.get("before-cargo");
-    let after_cargo = values.get("after-cargo");
-    let cargo = values.get("cargo");
-    if let Some(data) = before_cargo {
-        let hooks = data.as_array().expect("msg");
-
-        for hook in hooks {
-            if let Some(h) = hook.as_str() {
-                if shell_exec(h) {
-                    continue;
-                }
-                return error();
-            }
-        }
-    }
-    if let Some(data) = cargo {
+    let hooks = values.get("hooks");
+    if let Some(data) = hooks {
         let hooks = data.as_array().expect("msg");
         for hook in hooks {
             if let Some(h) = hook.as_str() {
-                if shell_exec(h) {
-                    continue;
-                }
-                return error();
-            }
-        }
-    }
-    if let Some(data) = after_cargo {
-        let hooks = data.as_array().expect("msg");
-        for hook in hooks {
-            if let Some(h) = hook.as_str() {
-                if shell_exec(h) {
-                    continue;
-                }
-                return error();
-            }
-        }
-    }
-    if let Some(data) = after_cargo {
-        let hooks = data.as_array().expect("msg");
-        for hook in hooks {
-            if let Some(h) = hook.as_str() {
-                if shell_exec(h) {
+                if shell(h) {
                     continue;
                 }
                 return error();
@@ -197,7 +189,7 @@ fn run_zuu() -> Result<(), Error> {
     Ok(())
 }
 #[cfg(feature = "ui")]
-fn zuu_ui() -> Result<(), Error> {
+fn zuu_ui() {
     let mut term: Terminal<CrosstermBackend<Stdout>> = init();
     term.clear().expect("failed to clear screen");
     term.set_cursor_position((0, 0))
@@ -218,7 +210,7 @@ fn zuu_ui() -> Result<(), Error> {
             );
         })
         .is_ok());
-    let mut success: Result<(), Error> = Err(Error::other("default to error"));
+    let mut success: Result<(), Error>;
     let mut v: u16 = 0;
     let mut h: u16 = 0;
     loop {
@@ -296,7 +288,6 @@ fn zuu_ui() -> Result<(), Error> {
     }
 
     restore();
-    gen_badges(success.is_ok())
 }
 
 fn error() -> Result<(), Error> {
@@ -307,66 +298,18 @@ fn error() -> Result<(), Error> {
     ))
 }
 
-fn gen_badges(success: bool) -> Result<(), Error> {
-    let key = if success { "success" } else { "failure" };
-    let zuu: String = read_to_string("zuu.toml").unwrap_or_default();
-    let values: Value = zuu.parse::<Value>().unwrap_or(Value::String(String::new()));
-    let badges = values.get("badge");
-    if let Some(data) = badges {
-        let hooks = data.as_table().expect("msg");
-        let hook = hooks.get(key);
-        #[cfg(feature = "cli")]
-        let pb = ProgressBar::new_spinner().with_message(format!("run {key} badge generation"));
-        #[cfg(feature = "cli")]
-        pb.enable_steady_tick(Duration::from_millis(100));
-        if let Some(hooks) = hook {
-            let data = hooks.as_array().expect("msg");
-            for to in data {
-                if let Some(h) = to.as_str() {
-                    if shell_exec(h) {
-                        #[cfg(feature = "cli")]
-                        pb.inc(1);
-                        #[cfg(feature = "cli")]
-                        sleep(Duration::from_secs(1));
-                        continue;
-                    }
-                    return Err(Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        read_to_string(ZUU_STDERR_FILE)
-                            .expect("No founded error file")
-                            .as_str(),
-                    ));
-                }
-            }
-        }
-        #[cfg(feature = "cli")]
-        pb.finish_and_clear();
-        return Ok(());
-    }
-    return Err(Error::new(
-        std::io::ErrorKind::InvalidData,
-        read_to_string(ZUU_STDERR_FILE)
-            .expect("No founded error file")
-            .as_str(),
-    ));
-}
-
-fn main() -> ExitCode {
+fn main() {
     if Path::new("zuu.toml").exists().eq(&false) {
         assert!(generate_zuu().is_ok());
     }
     #[cfg(feature = "ui")]
-    return match zuu_ui() {
-        Ok(()) => ExitCode::SUCCESS,
-        Err(_) => ExitCode::FAILURE,
-    };
+    zuu_ui();
 
     #[cfg(feature = "cli")]
     return match zuu_cli() {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(()) => println!("Code can be commited"),
         Err(e) => {
             eprintln!("{e}");
-            ExitCode::FAILURE
         }
     };
 }
