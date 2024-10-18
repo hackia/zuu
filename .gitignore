@@ -15,7 +15,7 @@ Cargo.lock
 .idea
 /beta
 /stable
-/zuu
+/dockers
 /nightly
 /.vscode
 /*.html

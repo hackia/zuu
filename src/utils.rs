@@ -43,6 +43,7 @@ pub enum Language {
     Cobol,
     Fortran,
     Nim,
+    Nodejs,
     Vlang, // V language
     OCaml,
     Tcl,
@@ -2349,6 +2350,41 @@ impl Zuu {
 
         Ok(())
     }
+
+
+    pub fn nodejs(self) -> Result<(), Error> {
+        if self.format
+            && Command::new("prettier")
+            .args(&["--check", "."])
+            .status()
+            .is_err()
+        {
+            Err(Error::new(ErrorKind::Other, FORMAT_ERR))
+        } else if self.test
+            && Command::new("npm")
+            .args(&["test"])
+            .status()
+            .is_err()
+        {
+            Err(Error::new(ErrorKind::Other, TEST_ERR))
+        } else if self.lint
+            && Command::new("eslint")
+            .args(&["."])
+            .status()
+            .is_err()
+        {
+            Err(Error::new(ErrorKind::Other, LINT_ERR))
+        } else if self.audit
+            && Command::new("npm")
+            .args(&["audit"])
+            .status()
+            .is_err()
+        {
+            Err(Error::new(ErrorKind::Other, AUDIT_ERR))
+        } else {
+            Ok(())
+        }
+    }
     pub fn run(self, lang: &Language) -> Result<(), Error> {
         match lang {
             Language::Rust => self.rust(),
@@ -2381,6 +2417,7 @@ impl Zuu {
             Language::Cobol => self.cobol(),
             Language::Fortran => self.fortran(),
             Language::Nim => self.nim(),
+            Language::Nodejs => self.nodejs(),
             Language::Vlang => self.vlang(),
             Language::OCaml => self.ocaml(),
             Language::Tcl => self.tcl(),

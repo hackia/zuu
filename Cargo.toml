@@ -10,17 +10,41 @@ repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
 keywords = ["lint", "quality", "prevention", "Maintainability", "optimization"]
 [dependencies]
-crossterm = { version = "0.28.1", optional = true }
-indicatif = { version = "0.17.8", optional = true }
-inquire = { version = "0.7.5", optional = true, features = [
-    "console",
-    "editor",
-] }
-ratatui = { version = "0.28.1", features = ["all-widgets"], optional = true }
-toml = "0.8.19"
 
 [features]
-default = ["ui"]
-ui = ["ratatui", "ratatui/all-widgets", "crossterm"]
-cli = ["inquire", "indicatif"]
+default = ["rust"]
+bash = []
+c = []
+clojure = []
+cobol = []
+crystal = []
 d = []
+dart = []
+elixir = []
+erlang = []
+fortran = []
+fsharp = []
+go = []
+groovy = []
+haskell = []
+java = []
+julia = []
+kotlin = []
+lua = []
+matlab = []
+nim = []
+nodejs = []
+objc = []
+ocaml = []
+perl = []
+php = []
+python = []
+r = []
+ruby = []
+rust = []
+scala = []
+swift = []
+tcl = []
+typescript = []
+vhdl = []
+vlang = []

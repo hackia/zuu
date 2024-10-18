@@ -1,9 +1,13 @@
 name: zuu
 on:
   push:
-    branches: [ "master" , "develop" , "main" ]
+    branches:
+        - main
+        - develop
   pull_request:
-    branches: [ "master" , "develop" , "main"  ]
+    branches:
+      - main
+      - develop
 env:
   CARGO_TERM_COLOR: always
   TERM: xterm-256color
@@ -21,6 +25,6 @@ jobs:
       - name: deps
         run:  cargo install cargo-audit cargo-auditable cargo-deny cargo-outdated
       - name: installation
-        run:  cargo install zuu --no-default-features --features cli
+        run:  cargo install zuu --no-default-features --features rust
       - name: zuu
         run:  git checkout "${GITHUB_REF##*/}" && zuu

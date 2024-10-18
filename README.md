@@ -1,98 +1,230 @@
 <div align="center">
 
-![zuu](zuu.png)
-
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/otechdo/zuu/zuu.yml?branch=main&style=flat&logo=github&logoColor=grey&label=Workflow&labelColor=white&color=white)](https://github.com/otechdo/zuu/actions/workflows/zuu.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/otechdo/zuu?include_prereleases&sort=semver&display_name=tag&style=flat&logo=rust&logoColor=grey&label=Release&labelColor=white&color=white)](https://github.com/otechdo/zuu/releases)
-[![GitHub License](https://img.shields.io/github/license/otechdo/zuu?style=flat&logo=rust&logoColor=grey&label=License&labelColor=white&color=white)](https://github.com/otechdo/zuu/blob/main/LICENSE)
+![zuu](https://raw.githubusercontent.com/otechdo/zuu/refs/heads/main/zuu.png)
 
 </div>
 
-# Zuu
+# Zuu Project
 
+Zuu is a continuous verification tool for multiple programming languages. 
 
-**Zuu** is a command-line tool designed to streamline and enhance code verification for Rust projects. It leverages a `zuu.toml` configuration file at the project's root, allowing developers to define a series of checks and actions to be executed before, during, and after `cargo` commands.
+It allows you to run tests, check code formatting, perform security audits, and more, based on the configured programming language.
 
-**Think of it as a supercharged Makefile for your Rust code quality checks!**
+## Table of Contents
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Customisation](#customisation)
+- [Continuous Integration](#continuous-integration)
+  - [GitHub Actions](#github-actions)
+  - [Travis CI](#travis-ci)
+- [Contributing](#contributing)
+- [License](#license)
 
+## Features
 
-## Key Features
+- **Multi-language support**:
+  - Bash
+  - C
+  - Clojure
+  - Cobol
+  - Crystal
+  - Dart
+  - Elixir
+  - Erlang
+  - FSharp
+  - Fortran
+  - Go
+  - Groovy
+  - Haskell
+  - Java
+  - Julia
+  - Kotlin
+  - Lua
+  - Matlab
+  - Nim
+  - Objective-C
+  - Perl
+  - PHP
+  - Python
+  - R
+  - Ruby
+  - Rust
+  - Scala
+  - Swift
+  - TypeScript
+  - Vlang
+- Customizable testing options using environment variables for test control.
+- Isolation of development and test environments via Docker and Docker Compose.
+- Flexible configuration using Cargo `features`.
+- Execute tests, format checks, security audits, and more for each supported language.
 
-* **Customizable Hooks:** Define `before-cargo`, `cargo`, and `after-cargo` hooks to run shell commands at different stages.
-* **Flexible Configuration:** The `zuu.toml` file provides a centralized and adaptable way to manage all your code checks.
-* **Built-in `clippy` Support:**  Includes built-in support for `clippy` with customizable lints and severity levels.
-* **Extensible with Shell Scripts:** Execute any shell command within your hooks for ultimate flexibility.
-* **Automated Workflows:** Integrate seamlessly with CI/CD pipelines and Git hooks.
-* **Badge Generation:** Generate badges to display the status of your code verification process.
+## Requirements
 
-## Benefits
-
-* **Improved Code Quality:** Enforce coding standards and catch potential issues early.
-* **Increased Efficiency:** Automate your code checks and save valuable development time.
-* **Enhanced Collaboration:**  Provide a consistent framework for code quality across your team.
-* **Greater Flexibility:**  Customize your workflow to fit your specific needs.
+- [Docker](https://www.docker.com/get-started) (version >= 20.10)
+- [Docker Compose](https://docs.docker.com/compose/install/) (version >= 1.29)
+- [Rust](https://www.rust-lang.org/tools/install) and Cargo (for local development)
 
 ## Installation
 
-### For CLI
+1. Clone the repository to your machine:
+    ```bash
+    git clone https://github.com/otechdo/zuu.git
+    cd zuu
+    ```
+
+2. Running with Docker Compose
+
+To run the project in an isolated Docker environment, use Docker Compose.
+
+You can run tests for each supported language.
+
+To start a test container for a specific language, use the following command:
 
 ```bash
-cargo install zuu --no-default-features --features cli
+docker-compose up --build --abort-on-container-exit <service-name>
 ```
 
-### For UI (using Broot)
+For example, to run the tests for **Rust**:
 
 ```bash
-cargo install zuu broot
+docker-compose up --build --abort-on-container-exit rust-tests
 ```
 
-## Usage
+1. Running Tests for All Languages
+
+
+You can also run all the tests sequentially for every supported language:
 
 ```bash
-zuu
+docker-compose up --build --abort-on-container-exit
 ```
 
-## Broot Verbs Configuration
+1. Using Cargo
 
-```hjson
-{
-  invocation: zuu
-  shortcut: z
-  execution: "zuu"
-  leave_broot: false
-}
+If you're working locally with **Rust** and want to compile the project with a specific language feature, use Cargo `features`. For example, to activate the feature for **Rust**:
+
+```bash
+cargo build --no-default-features --features "rust"
 ```
 
-## Zuu.toml
+## Zuu Configuration Options
 
-```toml
-before = ["cargo fmt"]
-zuu = [
-    "cargo verify-project",
-    "cargo check --all-targets --profile=test",
-    "cargo deny check",
-    "cargo audit",
-    "cargo test -j 4 --no-fail-fast -- --show-output",
-    "cargo fmt --check",
-    "cargo clippy -- -D clippy::pedantic -W clippy::nursery -D warnings -D clippy::all",
-    "cargo outdated",
-]
-after = []
+Zuu provides several options that you can control via environment variables to customize the checks it performs. The configuration options allow you to enable or disable specific tasks such as testing, linting, formatting checks, security audits, and license validation.
 
-[badge]
-success = ["curl [https://img.shields.io/badge/zuu-passing-darkgreen](https://img.shields.io/badge/zuu-passing-darkgreen) -o zuu.svg"]
-failure = ["curl [https://img.shields.io/badge/zuu-failure-red](https://img.shields.io/badge/zuu-failure-red) -o zuu.svg"]
+### Available Options:
+
+| Environment Variable | Description                                      | Default |
+|----------------------|--------------------------------------------------|---------|
+| `TESTS`              | Enable or disable the execution of tests.        | `false` |
+| `FORMAT`             | Check if the code is properly formatted.         | `false` |
+| `LINT`               | Run a linting process to catch potential issues. | `false` |
+| `AUDIT`              | Perform a security audit of the dependencies.    | `false` |
+| `LICENSE`            | Check the license compatibility of dependencies. | `false` |
+
+### Usage
+
+These options are controlled using environment variables, which you can set when running the project in either your development or Docker environment. By default, all options are disabled (`false`), but you can enable them as needed by setting them to `true`.
+
+#### Running Locally:
+
+When running locally, you can set these environment variables in your shell before executing the Zuu tool:
+
+```bash
+export TESTS=true       # Enable test execution
+export FORMAT=true      # Enable code formatting checks
+export LINT=true        # Enable linting
+export AUDIT=true       # Enable security audit
+export LICENSE=true     # Enable license checks
+
+# Run the tool after setting the environment variables
+cargo run
 ```
 
-### GitHub Actions Workflow Example 
+#### Using Docker Compose:
+
+In the `docker-compose.yml` file, you can define these options under the `environment` section for your service. For example:
+
+```yaml
+version: '3'
+services:
+  zuu:
+    image: "your-docker-image"
+    environment:
+      - TESTS=true
+      - FORMAT=true
+      - LINT=true
+      - AUDIT=true
+      - LICENSE=true
+    volumes:
+      - /dir/on/host:/app
+```
+
+This will run Zuu with all the options enabled.
+
+### Customizing Options in Docker:
+
+You can adjust these options in Docker by modifying the environment variables in your `docker-compose.yml` or when running the Docker container.
+
+For example:
+
+```bash
+docker run -e TESTS=true -e FORMAT=true -e LINT=false -e AUDIT=true -e LICENSE=true your-docker-image
+```
+
+## Customisation
+
+Follow these steps to customise the project, edit the Dockerfiles, and push the images to your own Docker repository:
+
+1. **Clone the repository** to your machine:
+    ```bash
+    git clone https://github.com/otechdo/zuu.git
+    cd zuu/dockers
+    ```
+
+2. **Ensure Docker and Docker Compose** are installed on your system:
+    - Docker: [Install Docker](https://docs.docker.com/get-docker/)
+    - Docker Compose: [Install Docker Compose](https://docs.docker.com/compose/install/)
+
+3. **Edit the Dockerfiles** according to your needs:
+    - Navigate to the appropriate directories for each language (e.g., `rust/Dockerfile`, `python/Dockerfile`).
+    - Make the necessary changes to each Dockerfile.
+
+4. **Login to Docker Hub**:
+    - If you are not logged in already, log in to Docker Hub:
+      ```bash
+      docker login
+      ```
+
+5. **Build and push your images**:
+    - Use the following command to build and push all Docker images to your own repository:
+      ```bash
+      make -j 4 USERNAME="your_docker_username" REPO="your_repository_name"
+      ```
+
+6. **Verify your images on Docker Hub**:
+    - Once pushed, you can verify the images by logging into Docker Hub and navigating to your repository.
+
+## Continuous Integration
+
+You can use both **GitHub Actions** and **Travis CI** for continuous integration (CI) to automate the build and testing process for the project.
+
+### GitHub Actions
+
+1. **Create a `.github/workflows/ci.yml` file** in your repository with the following configuration:
 
 ```yaml
 name: zuu
 on:
   push:
-    branches: [ "master" , "develop" , "main" ]
+    branches:
+        - main
+        - develop
   pull_request:
-    branches: [ "master" , "develop" , "main"  ]
+    branches:
+      - main
+      - develop
 env:
   CARGO_TERM_COLOR: always
   TERM: xterm-256color
@@ -110,7 +242,63 @@ jobs:
       - name: deps
         run:  cargo install cargo-audit cargo-auditable cargo-deny cargo-outdated
       - name: installation
-        run:  cargo install zuu --no-default-features --features cli
+        run:  cargo install zuu --no-default-features --features rust
       - name: zuu
         run:  git checkout "${GITHUB_REF##*/}" && zuu
+
 ```
+
+1. **Set up Docker credentials** in GitHub Secrets:
+    - Go to your repository’s **Settings > Secrets**.
+    - Add `DOCKER_USERNAME` and `DOCKER_PASSWORD` with your Docker Hub credentials.
+
+With this configuration, GitHub Actions will build and test your Docker images on every push or pull request to the `main` branch.
+
+### Travis CI
+
+1. **Create a `.travis.yml` file** in your repository:
+
+```yaml
+language: minimal
+
+services:
+  - docker
+
+before_script:
+  - docker-compose --version
+  - docker-compose up --build --abort-on-container-exit
+
+script:
+  - docker-compose run <your_test_service>
+
+deploy:
+  provider: script
+  script: docker-compose push
+  on:
+    branch: main
+
+env:
+  global:
+    - DOCKER_USERNAME=$DOCKER_USERNAME
+    - DOCKER_PASSWORD=$DOCKER_PASSWORD
+```
+
+1. **Set up Docker credentials** in Travis CI:
+    - Go to your Travis CI project’s **Settings**.
+    - Add `DOCKER_USERNAME` and `DOCKER_PASSWORD` as environment variables.
+
+This Travis CI configuration will build and test the Docker images, and push them to Docker Hub when the `main` branch is updated.
+
+## Contributing
+
+Contributions are welcome! To contribute to the project, follow these steps:
+
+1. Fork the project.
+2. Create a branch for your feature (git checkout -b feature/amazing-feature`).
+3. Commit your changes (`git commit -m 'Add some amazing feature'`).
+4. Push to the branch (`git push origin feature/amazing-feature`).
+5. Open a Pull Request.
+
+## License
+
+This project is licensed under the AGPL-3.0 License. See the [LICENSE](https://raw.githubusercontent.com/otechdo/zuu/refs/heads/main/LICENSE) file for more details.

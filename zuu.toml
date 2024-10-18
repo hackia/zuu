@@ -1,8 +1,0 @@
-[rust]
-format = true
-test = true
-lint = true
-coverage = true
-audit = true
-license = true
-dependencies = true
