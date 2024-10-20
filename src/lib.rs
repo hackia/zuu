@@ -14,7 +14,6 @@ pub const LICENSE_ERR: &str =
     "Error: License issues detected. Some dependencies may have incompatible licenses.";
 
 pub enum Language {
-    Assembly,
     Rust,
     Go,
     C,
@@ -33,7 +32,6 @@ pub enum Language {
     Haskell,
     Clojure,
     Bash,
-    Basic,
     ObjectiveC,
     Erlang,
     Lua,
@@ -2119,168 +2117,66 @@ impl Zuu {
                 ),
             ));
         }
-
         Ok(())
     }
 
     fn c(self) -> Result<(), Error> {
-        if self.format
-            && Command::new("clang-format")
-                .args(&["-i", "*.c", "*.h"])
-                .status()
-                .is_err()
-        {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                    "{}\nRun: clang-format -i *.c *.h to apply formatting corrections.",
-                    FORMAT_ERR
-                ),
-            ));
+        if Command::new("cmake").arg(".").status().is_ok() {
+            if self.format
+                && Command::new("make")
+                    .arg("fmt")
+                    .current_dir(".")
+                    .status()
+                    .is_err()
+            {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("{}\n:make fmt detect errors", FORMAT_ERR),
+                ));
+            }
+            if self.audit
+                && Command::new("make")
+                    .arg("audit")
+                    .current_dir(".")
+                    .status()
+                    .is_err()
+            {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("{}\n:make audit detect errors", FORMAT_ERR),
+                ));
+            }
+            if self.lint
+                && Command::new("make")
+                    .arg("lint")
+                    .current_dir(".")
+                    .status()
+                    .is_err()
+            {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("{}\n:make lint detect errors", FORMAT_ERR),
+                ));
+            }
+            if self.license
+                && Command::new("make")
+                    .arg("license")
+                    .current_dir(".")
+                    .status()
+                    .is_err()
+            {
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!("{}\n:make license detect errors", FORMAT_ERR),
+                ));
+            }
+            return Ok(());
         }
-
-        if self.test
-            && Command::new("gcc")
-                .args(&["-o", "test_program", "main.c", "test.c"])
-                .status()
-                .is_err()
-            || Command::new("./test_program").status().is_err()
-        {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                "{}\nRun: gcc -o test_program main.c test.c and ./test_program to run the tests.",
-                TEST_ERR
-            ),
-            ));
-        }
-
-        if self.audit
-            && Command::new("valgrind")
-                .args(&["--leak-check=full", "./test_program"])
-                .status()
-                .is_err()
-        {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                "{}\nRun: valgrind --leak-check=full ./test_program to check for memory issues.",
-                AUDIT_ERR
-            ),
-            ));
-        }
-
-        if self.lint
-            && Command::new("cppcheck")
-                .args(&["--enable=all", "--inconclusive", "*.c"])
-                .status()
-                .is_err()
-        {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                "{}\nRun: cppcheck --enable=all --inconclusive *.c to check for linting issues.",
-                LINT_ERR
-            ),
-            ));
-        }
-
-        if self.license
-            && Command::new("licensecheck")
-                .args(&["*.c", "*.h"])
-                .status()
-                .is_err()
-        {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                    "{}\nRun: licensecheck *.c *.h to verify license issues.",
-                    LICENSE_ERR
-                ),
-            ));
-        }
-
-        Ok(())
+        Err(Error::new(ErrorKind::NotFound, " CMakeLists.txt not found"))
     }
 
     fn cpp(self) -> Result<(), Error> {
-        if self.format
-            && Command::new("clang-format")
-                .args(&["-i", "*.cpp", "*.hpp"])
-                .status()
-                .is_err()
-        {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                    "{}\nRun: clang-format -i *.c *.h to apply formatting corrections.",
-                    FORMAT_ERR
-                ),
-            ));
-        }
-
-        if self.test
-            && Command::new("gcc")
-                .args(&["-o", "test_program", "main.c", "test.c"])
-                .status()
-                .is_err()
-            || Command::new("./test_program").status().is_err()
-        {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                "{}\nRun: gcc -o test_program main.c test.c and ./test_program to run the tests.",
-                TEST_ERR
-            ),
-            ));
-        }
-
-        if self.audit
-            && Command::new("valgrind")
-                .args(&["--leak-check=full", "./test_program"])
-                .status()
-                .is_err()
-        {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                "{}\nRun: valgrind --leak-check=full ./test_program to check for memory issues.",
-                AUDIT_ERR
-            ),
-            ));
-        }
-
-        if self.lint
-            && Command::new("cppcheck")
-                .args(&["--enable=all", "--inconclusive", "*.c"])
-                .status()
-                .is_err()
-        {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                "{}\nRun: cppcheck --enable=all --inconclusive *.c to check for linting issues.",
-                LINT_ERR
-            ),
-            ));
-        }
-
-        if self.license
-            && Command::new("licensecheck")
-                .args(&["*.c", "*.h"])
-                .status()
-                .is_err()
-        {
-            return Err(Error::new(
-                ErrorKind::Other,
-                format!(
-                    "{}\nRun: licensecheck *.c *.h to verify license issues.",
-                    LICENSE_ERR
-                ),
-            ));
-        }
-
-        Ok(())
+        self.c()
     }
 
     fn d(self) -> Result<(), Error> {
@@ -2453,16 +2349,8 @@ impl Zuu {
             Ok(())
         }
     }
-
-    pub fn basic(self) -> Result<(), Error> {
-        Ok(())
-    }
-    pub fn asm(self) -> Result<(), Error> {
-        Ok(())
-    }
     pub fn run(self, lang: &Language) -> Result<(), Error> {
         match lang {
-            Language::Assembly => self.asm(),
             Language::Rust => self.rust(),
             Language::Go => self.go(),
             Language::C => self.c(),
@@ -2499,7 +2387,6 @@ impl Zuu {
             Language::OCaml => self.ocaml(),
             Language::Tcl => self.tcl(),
             Language::VHDL => self.vhdl(),
-            Language::Basic => self.basic(),
             Language::Unknown => Err(Error::new(
                 ErrorKind::Other,
                 "Error: Unknown language. Please specify a supported language.",

@@ -14,9 +14,6 @@ keywords = ["lint", "quality", "prevention", "Maintainability", "optimization"]
 name = "bash-audit"
 
 [[bin]]
-name = "basic-audit"
-
-[[bin]]
 name = "c-audit"
 
 [[bin]]
