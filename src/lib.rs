@@ -569,7 +569,84 @@ impl Zuu {
         }
         Err(Error::new(std::io::ErrorKind::NotFound, "no package.json"))
     }
-
+    fn d(&mut self) -> Result<(), Error> {
+        if Path::new("dub.json").is_file() || Path::new("dub.sdl").is_file() {
+            let mut results: (bool, bool, bool) = (false, false, false);
+            let mut output: Stdout = stdout();
+            execute!(&mut output, Clear(ClearType::All)).expect("msg");
+            if Command::new("dub")
+                .arg("test")
+                .stderr(File::create("zuu/stderr/test")?)
+                .stdout(File::create("zuu/stdout/test")?)
+                .current_dir(".")
+                .spawn()
+                .expect("dub")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.0 = true;
+                assert!(ok(&mut output, "All tests passes", 1).is_ok());
+            } else {
+                assert!(ko(&mut output, "Test have failures", 1).is_ok());
+                results.0 = false;
+            }
+            if Command::new("dub")
+                .arg("lint")
+                .arg("--nodeps")
+                .arg("--syntax-check")
+                .stderr(File::create("zuu/stderr/syntax")?)
+                .stdout(File::create("zuu/stdout/syntax")?)
+                .current_dir(".")
+                .spawn()
+                .expect("dub")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.1 = true;
+                assert!(ok(&mut output, "The project respect the syntax", 2).is_ok());
+            } else {
+                results.1 = false;
+                assert!(ko(&mut output, "The project has bad syntax", 2).is_ok());
+            }
+            if Command::new("dub")
+                .arg("lint")
+                .arg("--style-check")
+                .arg("--nodeps")
+                .stderr(File::create("zuu/stderr/style")?)
+                .stdout(File::create("zuu/stdout/style")?)
+                .current_dir(".")
+                .spawn()
+                .expect("dub")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.2 = true;
+                assert!(ok(
+                    &mut output,
+                    "The source style analysis no contains failures",
+                    3
+                )
+                .is_ok());
+            } else {
+                results.2 = false;
+                assert!(ko(
+                    &mut output,
+                    "The source style analysis contains failures",
+                    3
+                )
+                .is_ok());
+            }
+            assert!(execute!(&mut output, Print("\n\n")).is_ok());
+            if results.0 && results.1 && results.2 {
+                return Ok(());
+            }
+            return Err(Error::other("zuu detect error"));
+        }
+        Err(Error::new(std::io::ErrorKind::NotFound, "no package.json"))
+    }
     fn all(&mut self) -> Result<(), Error> {
         self.checked.insert(
             Checked::License,
@@ -633,6 +710,7 @@ impl Zuu {
         match self.language {
             Language::Rust => zuu_exit(&self.rust()),
             Language::Php => zuu_exit(&self.php()),
+            Language::D => zuu_exit(&self.d()),
             Language::Nodejs | Language::TypeScript => zuu_exit(&self.js()),
             Language::Unknown => ExitCode::FAILURE,
             _ => zuu_exit(&self.all()),
