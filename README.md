@@ -20,8 +20,8 @@ It allows you to run tests, check code formatting, perform security audits, and 
     - [Available Options](#available-options)
     - [Usage](#usage)
       - [Running Locally:](#running-locally)
-      - [Using Docker Compose:](#using-docker-compose)
-    - [Customizing Options in Docker:](#customizing-options-in-docker)
+      - [Using Docker Compose](#using-docker-compose)
+    - [Customizing Options in Docker](#customizing-options-in-docker)
   - [Customisation](#customisation)
   - [Continuous Integration](#continuous-integration)
     - [GitHub Actions](#github-actions)
@@ -149,28 +149,30 @@ export LICENSE=true     # Enable license checks
 cargo run
 ```
 
-#### Using Docker Compose:
+#### Using Docker Compose
 
 In the `docker-compose.yml` file, you can define these options under the `environment` section for your service. For example:
 
 ```yaml
-version: '3'
 services:
   zuu:
-    image: "your-docker-image"
+    image: otechdo/zuu:latest
     environment:
       - TESTS=true
       - FORMAT=true
       - LINT=true
       - AUDIT=true
       - LICENSE=true
+      - EDITOR=vim
     volumes:
-      - /dir/on/host:/app
+      - .:/app # Copy source code in the container
+    command:
+      - rust-audit # Check rust code
 ```
 
 This will run Zuu with all the options enabled.
 
-### Customizing Options in Docker:
+### Customizing Options in Docker
 
 You can adjust these options in Docker by modifying the environment variables in your `docker-compose.yml` or when running the Docker container.
 

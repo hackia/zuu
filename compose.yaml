@@ -1,8 +1,6 @@
 services:
   zuu:
-    image: otechdo/zuu:ttyd
-    ports:
-      - 7681:7681
+    image: otechdo/zuu:latest
     environment:
       - TESTS=true
       - FORMAT=true
@@ -10,3 +8,7 @@ services:
       - AUDIT=true
       - LICENSE=true
       - EDITOR=vim
+    volumes:
+      - .:/app
+    command:
+      - rust-audit

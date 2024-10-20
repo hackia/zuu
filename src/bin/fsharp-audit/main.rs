@@ -1,6 +1,6 @@
-use std::io::Error;
+use std::process::ExitCode;
 use zuu::{Language, Zuu};
 
-fn main() -> Result<(), Error> {
-    Zuu::new().run(&Language::FSharp)
+fn main() -> ExitCode {
+    Zuu::new(Language::FSharp).check()
 }
