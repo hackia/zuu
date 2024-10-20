@@ -73,7 +73,7 @@ pub fn zuu_exit(status: &Result<(), Error>) -> ExitCode {
     }
     ExitCode::SUCCESS
 }
-fn ok(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()> {
+pub fn ok(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()> {
     let (cols, _rows) = size().expect("failed to get terminal size");
 
     let status: &str = "[ ok ]";
@@ -102,7 +102,7 @@ fn ok(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()> {
     )
 }
 
-fn ko(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()> {
+pub fn ko(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()> {
     let (cols, _rows) = size().expect("failed to get terminal size");
 
     let status: &str = "[ ok ]";
@@ -289,6 +289,104 @@ impl Zuu {
         Err(Error::other("zuu detect error"))
     }
 
+    fn php(&mut self) -> Result<(), Error> {
+        let mut results: (bool, bool, bool, bool, bool) = (false, false, false, false, false);
+        let mut output: Stdout = stdout();
+        execute!(&mut output, Clear(ClearType::All)).expect("msg");
+        if Command::new("composer")
+            .arg("validate")
+            .arg("--strict")
+            .stderr(File::create("zuu/stderr/validate")?)
+            .stdout(File::create("zuu/stdout/validate")?)
+            .current_dir(".")
+            .spawn()
+            .expect("composer")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.0 = true;
+            assert!(ok(&mut output, "No composer problem founded", 1).is_ok());
+        } else {
+            assert!(ko(&mut output, "Composer validate detect problem", 1).is_ok());
+            results.0 = false;
+        }
+        if Command::new("composer")
+            .arg("diagnose")
+            .stderr(File::create("zuu/stderr/diagnose")?)
+            .stdout(File::create("zuu/stdout/diagnose")?)
+            .current_dir(".")
+            .spawn()
+            .expect("cargo")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.1 = true;
+            assert!(ok(&mut output, "Diagnose no detect problem", 2).is_ok());
+        } else {
+            results.1 = false;
+            assert!(ko(&mut output, "Diagnose detect problem", 2).is_ok());
+        }
+        if Command::new("composer")
+            .arg("audit")
+            .stderr(File::create("zuu/stderr/audit")?)
+            .stdout(File::create("zuu/stdout/audit")?)
+            .current_dir(".")
+            .spawn()
+            .expect("cargo")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.2 = true;
+            assert!(ok(&mut output, "No audit errors founded", 3).is_ok());
+        } else {
+            results.2 = false;
+            assert!(ko(&mut output, "Audit errors has been founded", 3).is_ok());
+        }
+
+        if Command::new("composer")
+            .arg("test")
+            .stderr(File::create("zuu/stderr/tests")?)
+            .stdout(File::create("zuu/stdout/tests")?)
+            .current_dir(".")
+            .spawn()
+            .expect("test")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.3 = true;
+            assert!(ok(&mut output, "All tests passes", 4).is_ok());
+        } else {
+            results.3 = false;
+            assert!(ko(&mut output, TEST_ERR, 4).is_ok());
+        }
+        if Command::new("composer")
+            .arg("fmt")
+            .stderr(File::create("zuu/stderr/fmt")?)
+            .stdout(File::create("zuu/stdout/fmt")?)
+            .current_dir(".")
+            .spawn()
+            .expect("composer")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.4 = true;
+            assert!(ok(&mut output, "Source code format respect stantard", 5).is_ok());
+        } else {
+            results.4 = false;
+            assert!(ko(&mut output, FORMAT_ERR, 5).is_ok());
+        }
+        assert!(execute!(&mut output, Print("\n\n")).is_ok());
+        if results.0 && results.1 && results.2 && results.3 && results.4 {
+            return Ok(());
+        }
+        Err(Error::other("zuu detect error"))
+    }
+
     fn all(&mut self) -> Result<(), Error> {
         self.checked.insert(
             Checked::License,
@@ -351,6 +449,7 @@ impl Zuu {
     pub fn check(&mut self) -> ExitCode {
         match self.language {
             Language::Rust => zuu_exit(&self.rust()),
+            Language::Php => zuu_exit(&self.php()),
             Language::Unknown => ExitCode::FAILURE,
             _ => zuu_exit(&self.all()),
         }
