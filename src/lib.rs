@@ -5,6 +5,7 @@ use crossterm::terminal::{size, Clear, ClearType};
 use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::io::{stdout, Error, Stdout};
+use std::path::Path;
 use std::process::{Command, ExitCode};
 
 pub const FORMAT_ERR: &str = "Source code is not formatted correctly. Please run the formatter.";
@@ -189,353 +190,384 @@ impl Zuu {
     }
 
     fn rust(&mut self) -> Result<(), Error> {
-        let mut results: (bool, bool, bool, bool, bool) = (false, false, false, false, false);
-        let mut output: Stdout = stdout();
-        execute!(&mut output, Clear(ClearType::All)).expect("msg");
-        if Command::new("cargo")
-            .arg("deny")
-            .arg("check")
-            .stderr(File::create("zuu/stderr/license")?)
-            .stdout(File::create("zuu/stdout/license")?)
-            .current_dir(".")
-            .spawn()
-            .expect("cargo")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.0 = true;
-            assert!(ok(&mut output, "No license problem founded", 1).is_ok());
-        } else {
-            assert!(ko(&mut output, LICENSE_ERR, 1).is_ok());
-            results.0 = false;
-        }
-        if Command::new("cargo")
-            .arg("audit")
-            .stderr(File::create("zuu/stderr/audit")?)
-            .stdout(File::create("zuu/stdout/audit")?)
-            .current_dir(".")
-            .spawn()
-            .expect("cargo")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.1 = true;
-            assert!(ok(&mut output, "No vulnerabilities founded", 2).is_ok());
-        } else {
-            results.1 = false;
-            assert!(ko(&mut output, AUDIT_ERR, 2).is_ok());
-        }
-        if Command::new("cargo")
-            .arg("clippy")
-            .stderr(File::create("zuu/stderr/lint")?)
-            .stdout(File::create("zuu/stdout/lint")?)
-            .current_dir(".")
-            .spawn()
-            .expect("cargo")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.2 = true;
-            assert!(ok(&mut output, "No lint errors founded", 3).is_ok());
-        } else {
-            results.2 = false;
-            assert!(ko(&mut output, LINT_ERR, 3).is_ok());
-        }
+        if Path::new("Cargo.toml").is_file() {
+            let mut results: (bool, bool, bool, bool, bool) = (false, false, false, false, false);
+            let mut output: Stdout = stdout();
+            execute!(&mut output, Clear(ClearType::All)).expect("msg");
+            if Command::new("cargo")
+                .arg("deny")
+                .arg("check")
+                .stderr(File::create("zuu/stderr/license")?)
+                .stdout(File::create("zuu/stdout/license")?)
+                .current_dir(".")
+                .spawn()
+                .expect("cargo")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.0 = true;
+                assert!(ok(&mut output, "No license problem founded", 1).is_ok());
+            } else {
+                assert!(ko(&mut output, LICENSE_ERR, 1).is_ok());
+                results.0 = false;
+            }
+            if Command::new("cargo")
+                .arg("audit")
+                .stderr(File::create("zuu/stderr/audit")?)
+                .stdout(File::create("zuu/stdout/audit")?)
+                .current_dir(".")
+                .spawn()
+                .expect("cargo")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.1 = true;
+                assert!(ok(&mut output, "No vulnerabilities founded", 2).is_ok());
+            } else {
+                results.1 = false;
+                assert!(ko(&mut output, AUDIT_ERR, 2).is_ok());
+            }
+            if Command::new("cargo")
+                .arg("clippy")
+                .stderr(File::create("zuu/stderr/lint")?)
+                .stdout(File::create("zuu/stdout/lint")?)
+                .current_dir(".")
+                .spawn()
+                .expect("cargo")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.2 = true;
+                assert!(ok(&mut output, "No lint errors founded", 3).is_ok());
+            } else {
+                results.2 = false;
+                assert!(ko(&mut output, LINT_ERR, 3).is_ok());
+            }
 
-        if Command::new("cargo")
-            .arg("test")
-            .arg("--no-fail-fast")
-            .stderr(File::create("zuu/stderr/tests")?)
-            .stdout(File::create("zuu/stdout/tests")?)
-            .current_dir(".")
-            .spawn()
-            .expect("cargo")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.3 = true;
-            assert!(ok(&mut output, "All tests passes", 4).is_ok());
-        } else {
-            results.3 = false;
-            assert!(ko(&mut output, TEST_ERR, 4).is_ok());
+            if Command::new("cargo")
+                .arg("test")
+                .arg("--no-fail-fast")
+                .stderr(File::create("zuu/stderr/tests")?)
+                .stdout(File::create("zuu/stdout/tests")?)
+                .current_dir(".")
+                .spawn()
+                .expect("cargo")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.3 = true;
+                assert!(ok(&mut output, "All tests passes", 4).is_ok());
+            } else {
+                results.3 = false;
+                assert!(ko(&mut output, TEST_ERR, 4).is_ok());
+            }
+            if Command::new("cargo")
+                .arg("fmt")
+                .arg("--check")
+                .arg("--all")
+                .stderr(File::create("zuu/stderr/fmt")?)
+                .stdout(File::create("zuu/stdout/fmt")?)
+                .current_dir(".")
+                .spawn()
+                .expect("cargo")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.4 = true;
+                assert!(ok(&mut output, "Source code format respect stantard", 5).is_ok());
+            } else {
+                results.4 = false;
+                assert!(ko(&mut output, FORMAT_ERR, 5).is_ok());
+            }
+            assert!(execute!(&mut output, Print("\n\n")).is_ok());
+            if results.0 && results.1 && results.2 && results.3 && results.4 {
+                return Ok(());
+            }
+            return Err(Error::other("zuu detect error"));
         }
-        if Command::new("cargo")
-            .arg("fmt")
-            .arg("--check")
-            .arg("--all")
-            .stderr(File::create("zuu/stderr/fmt")?)
-            .stdout(File::create("zuu/stdout/fmt")?)
-            .current_dir(".")
-            .spawn()
-            .expect("cargo")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.4 = true;
-            assert!(ok(&mut output, "Source code format respect stantard", 5).is_ok());
-        } else {
-            results.4 = false;
-            assert!(ko(&mut output, FORMAT_ERR, 5).is_ok());
-        }
-        assert!(execute!(&mut output, Print("\n\n")).is_ok());
-        if results.0 && results.1 && results.2 && results.3 && results.4 {
-            return Ok(());
-        }
-        Err(Error::other("zuu detect error"))
+        Err(Error::new(
+            std::io::ErrorKind::NotFound,
+            "Cargo.toml no founded",
+        ))
     }
 
     fn php(&mut self) -> Result<(), Error> {
-        let mut results: (bool, bool, bool, bool, bool, bool) =
-            (false, false, false, false, false, false);
-        let mut output: Stdout = stdout();
-        execute!(&mut output, Clear(ClearType::All)).expect("msg");
-        if Command::new("composer")
-            .arg("validate")
-            .arg("--strict")
-            .stderr(File::create("zuu/stderr/validate")?)
-            .stdout(File::create("zuu/stdout/validate")?)
-            .current_dir(".")
-            .spawn()
-            .expect("composer")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.0 = true;
-            assert!(ok(&mut output, "No composer problem founded", 1).is_ok());
-        } else {
-            assert!(ko(&mut output, "Composer validate detect problem", 1).is_ok());
-            results.0 = false;
-        }
-        if Command::new("composer")
-            .arg("diagnose")
-            .stderr(File::create("zuu/stderr/diagnose")?)
-            .stdout(File::create("zuu/stdout/diagnose")?)
-            .current_dir(".")
-            .spawn()
-            .expect("cargo")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.1 = true;
-            assert!(ok(&mut output, "Diagnose no detect problem", 2).is_ok());
-        } else {
-            results.1 = false;
-            assert!(ko(&mut output, "Diagnose detect problem", 2).is_ok());
-        }
-        if Command::new("composer")
-            .arg("audit")
-            .stderr(File::create("zuu/stderr/audit")?)
-            .stdout(File::create("zuu/stdout/audit")?)
-            .current_dir(".")
-            .spawn()
-            .expect("cargo")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.2 = true;
-            assert!(ok(&mut output, "No audit errors founded", 3).is_ok());
-        } else {
-            results.2 = false;
-            assert!(ko(&mut output, "Audit errors has been founded", 3).is_ok());
-        }
+        if Path::new("composer.json").is_file() {
+            let mut results: (bool, bool, bool, bool, bool, bool) =
+                (false, false, false, false, false, false);
+            let mut output: Stdout = stdout();
+            execute!(&mut output, Clear(ClearType::All)).expect("msg");
+            if Command::new("composer")
+                .arg("validate")
+                .arg("--strict")
+                .stderr(File::create("zuu/stderr/validate")?)
+                .stdout(File::create("zuu/stdout/validate")?)
+                .current_dir(".")
+                .spawn()
+                .expect("composer")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.0 = true;
+                assert!(ok(&mut output, "No composer problem founded", 1).is_ok());
+            } else {
+                assert!(ko(&mut output, "Composer validate detect problem", 1).is_ok());
+                results.0 = false;
+            }
+            if Command::new("composer")
+                .arg("diagnose")
+                .stderr(File::create("zuu/stderr/diagnose")?)
+                .stdout(File::create("zuu/stdout/diagnose")?)
+                .current_dir(".")
+                .spawn()
+                .expect("cargo")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.1 = true;
+                assert!(ok(&mut output, "Diagnose no detect problem", 2).is_ok());
+            } else {
+                results.1 = false;
+                assert!(ko(&mut output, "Diagnose detect problem", 2).is_ok());
+            }
+            if Command::new("composer")
+                .arg("audit")
+                .stderr(File::create("zuu/stderr/audit")?)
+                .stdout(File::create("zuu/stdout/audit")?)
+                .current_dir(".")
+                .spawn()
+                .expect("cargo")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.2 = true;
+                assert!(ok(&mut output, "No audit errors founded", 3).is_ok());
+            } else {
+                results.2 = false;
+                assert!(ko(&mut output, "Audit errors has been founded", 3).is_ok());
+            }
 
-        if Command::new("composer")
-            .arg("test")
-            .stderr(File::create("zuu/stderr/tests")?)
-            .stdout(File::create("zuu/stdout/tests")?)
-            .current_dir(".")
-            .spawn()
-            .expect("test")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.3 = true;
-            assert!(ok(&mut output, "All tests passes", 4).is_ok());
-        } else {
-            results.3 = false;
-            assert!(ko(&mut output, TEST_ERR, 4).is_ok());
+            if Command::new("composer")
+                .arg("test")
+                .stderr(File::create("zuu/stderr/tests")?)
+                .stdout(File::create("zuu/stdout/tests")?)
+                .current_dir(".")
+                .spawn()
+                .expect("test")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.3 = true;
+                assert!(ok(&mut output, "All tests passes", 4).is_ok());
+            } else {
+                results.3 = false;
+                assert!(ko(&mut output, TEST_ERR, 4).is_ok());
+            }
+            if Command::new("composer")
+                .arg("fmt")
+                .stderr(File::create("zuu/stderr/fmt")?)
+                .stdout(File::create("zuu/stdout/fmt")?)
+                .current_dir(".")
+                .spawn()
+                .expect("composer")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.4 = true;
+                assert!(ok(&mut output, "Source code format respect stantard", 5).is_ok());
+            } else {
+                results.4 = false;
+                assert!(ko(&mut output, FORMAT_ERR, 5).is_ok());
+            }
+            if Command::new("composer")
+                .arg("outdated")
+                .stderr(File::create("zuu/stderr/outdated")?)
+                .stdout(File::create("zuu/stdout/outdated")?)
+                .current_dir(".")
+                .spawn()
+                .expect("composer")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.5 = true;
+                assert!(ok(&mut output, "Dependencies are up to date", 6).is_ok());
+            } else {
+                results.5 = false;
+                assert!(ko(&mut output, "Dependencies must be updated", 6).is_ok());
+            }
+            assert!(execute!(&mut output, Print("\n\n")).is_ok());
+            if results.0 && results.1 && results.2 && results.3 && results.4 && results.5 {
+                return Ok(());
+            }
+            return Err(Error::other("zuu detect error"));
         }
-        if Command::new("composer")
-            .arg("fmt")
-            .stderr(File::create("zuu/stderr/fmt")?)
-            .stdout(File::create("zuu/stdout/fmt")?)
-            .current_dir(".")
-            .spawn()
-            .expect("composer")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.4 = true;
-            assert!(ok(&mut output, "Source code format respect stantard", 5).is_ok());
-        } else {
-            results.4 = false;
-            assert!(ko(&mut output, FORMAT_ERR, 5).is_ok());
-        }
-        if Command::new("composer")
-            .arg("outdated")
-            .stderr(File::create("zuu/stderr/outdated")?)
-            .stdout(File::create("zuu/stdout/outdated")?)
-            .current_dir(".")
-            .spawn()
-            .expect("composer")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.5 = true;
-            assert!(ok(&mut output, "Dependencies are up to date", 6).is_ok());
-        } else {
-            results.5 = false;
-            assert!(ko(&mut output, "Dependencies must be updated", 6).is_ok());
-        }
-        assert!(execute!(&mut output, Print("\n\n")).is_ok());
-        if results.0 && results.1 && results.2 && results.3 && results.4 && results.5 {
-            return Ok(());
-        }
-        Err(Error::other("zuu detect error"))
+        Err(Error::new(std::io::ErrorKind::NotFound, "no composer.json"))
     }
 
     fn js(&mut self) -> Result<(), Error> {
-        let mut results: (bool, bool, bool, bool, bool, bool, bool) =
-            (false, false, false, false, false, false, false);
-        let mut output: Stdout = stdout();
-        execute!(&mut output, Clear(ClearType::All)).expect("msg");
-        if Command::new("npm")
-            .arg("audit")
-            .stderr(File::create("zuu/stderr/audit")?)
-            .stdout(File::create("zuu/stdout/audit")?)
-            .current_dir(".")
-            .spawn()
-            .expect("npm")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.0 = true;
-            assert!(ok(&mut output, "No vulnerabilities founded", 1).is_ok());
-        } else {
-            assert!(ko(&mut output, "Audit detect vulnerabilities", 1).is_ok());
-            results.0 = false;
-        }
-        if Command::new("npm")
-            .arg("outdated")
-            .stderr(File::create("zuu/stderr/outdated")?)
-            .stdout(File::create("zuu/stdout/outdated")?)
-            .current_dir(".")
-            .spawn()
-            .expect("npm")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.1 = true;
-            assert!(ok(&mut output, "All dependencies are up to date", 2).is_ok());
-        } else {
-            results.1 = false;
-            assert!(ko(&mut output, "Dependencies must be updated", 2).is_ok());
-        }
-        if Command::new("npm")
-            .arg("audit")
-            .stderr(File::create("zuu/stderr/audit")?)
-            .stdout(File::create("zuu/stdout/audit")?)
-            .current_dir(".")
-            .spawn()
-            .expect("cargo")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.2 = true;
-            assert!(ok(&mut output, "No audit errors founded", 3).is_ok());
-        } else {
-            results.2 = false;
-            assert!(ko(&mut output, "Audit errors has been founded", 3).is_ok());
-        }
-        if Command::new("npm")
-            .arg("run")
-            .arg("lint")
-            .stderr(File::create("zuu/stderr/lint")?)
-            .stdout(File::create("zuu/stdout/lint")?)
-            .current_dir(".")
-            .spawn()
-            .expect("npm")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.3 = true;
-            assert!(ok(&mut output, "No lint errors founded", 4).is_ok());
-        } else {
-            results.3 = false;
-            assert!(ko(&mut output, "Lint errors has been founded", 4).is_ok());
-        }
+        if Path::new("package.json").is_file() {
+            let mut results: (bool, bool, bool, bool, bool, bool, bool) =
+                (false, false, false, false, false, false, false);
+            let mut output: Stdout = stdout();
+            execute!(&mut output, Clear(ClearType::All)).expect("msg");
+            if Command::new("npm")
+                .arg("audit")
+                .stderr(File::create("zuu/stderr/audit")?)
+                .stdout(File::create("zuu/stdout/audit")?)
+                .current_dir(".")
+                .spawn()
+                .expect("npm")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.0 = true;
+                assert!(ok(&mut output, "No vulnerabilities founded", 1).is_ok());
+            } else {
+                assert!(ko(&mut output, "Audit detect vulnerabilities", 1).is_ok());
+                results.0 = false;
+            }
+            if Command::new("npm")
+                .arg("outdated")
+                .stderr(File::create("zuu/stderr/outdated")?)
+                .stdout(File::create("zuu/stdout/outdated")?)
+                .current_dir(".")
+                .spawn()
+                .expect("npm")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.1 = true;
+                assert!(ok(&mut output, "All dependencies are up to date", 2).is_ok());
+            } else {
+                results.1 = false;
+                assert!(ko(&mut output, "Dependencies must be updated", 2).is_ok());
+            }
+            if Command::new("npm")
+                .arg("run")
+                .arg("licenses")
+                .stderr(File::create("zuu/stderr/licenses")?)
+                .stdout(File::create("zuu/stdout/licenses")?)
+                .current_dir(".")
+                .spawn()
+                .expect("cargo")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.2 = true;
+                assert!(ok(&mut output, "No licenses errors founded", 3).is_ok());
+            } else {
+                results.2 = false;
+                assert!(ko(&mut output, "Licenses errors has been founded", 3).is_ok());
+            }
+            if Command::new("npm")
+                .arg("run")
+                .arg("lint")
+                .stderr(File::create("zuu/stderr/lint")?)
+                .stdout(File::create("zuu/stdout/lint")?)
+                .current_dir(".")
+                .spawn()
+                .expect("npm")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.3 = true;
+                assert!(ok(&mut output, "No lint errors founded", 4).is_ok());
+            } else {
+                results.3 = false;
+                assert!(ko(&mut output, "Lint errors has been founded", 4).is_ok());
+            }
 
-        if Command::new("npm")
-            .arg("test")
-            .stderr(File::create("zuu/stderr/tests")?)
-            .stdout(File::create("zuu/stdout/tests")?)
-            .current_dir(".")
-            .spawn()
-            .expect("test")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.4 = true;
-            assert!(ok(&mut output, "All tests passes", 5).is_ok());
-        } else {
-            results.4 = false;
-            assert!(ko(&mut output, TEST_ERR, 5).is_ok());
+            if Command::new("npm")
+                .arg("test")
+                .stderr(File::create("zuu/stderr/tests")?)
+                .stdout(File::create("zuu/stdout/tests")?)
+                .current_dir(".")
+                .spawn()
+                .expect("test")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.4 = true;
+                assert!(ok(&mut output, "All tests passes", 5).is_ok());
+            } else {
+                results.4 = false;
+                assert!(ko(&mut output, TEST_ERR, 5).is_ok());
+            }
+            if Command::new("npm")
+                .arg("doctor")
+                .stderr(File::create("zuu/stderr/doctor")?)
+                .stdout(File::create("zuu/stdout/doctor")?)
+                .current_dir(".")
+                .spawn()
+                .expect("npm")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.5 = true;
+                assert!(ok(&mut output, "The health of your npm environment is ok", 6).is_ok());
+            } else {
+                results.5 = false;
+                assert!(ko(&mut output, "The health of your npm environment is bad", 6).is_ok());
+            }
+            if Command::new("npm")
+                .arg("cache")
+                .arg("verify")
+                .stderr(File::create("zuu/stderr/cache")?)
+                .stdout(File::create("zuu/stdout/cache")?)
+                .current_dir(".")
+                .spawn()
+                .expect("npm")
+                .wait()
+                .expect("wait")
+                .success()
+            {
+                results.6 = true;
+                assert!(ok(
+                    &mut output,
+                    "The cache integrity of the cache index and all cached data are ok",
+                    7
+                )
+                .is_ok());
+            } else {
+                results.6 = false;
+                assert!(ko(
+                    &mut output,
+                    "The cache integrity of the cache index and all cached data have problem",
+                    7
+                )
+                .is_ok());
+            }
+            assert!(execute!(&mut output, Print("\n\n")).is_ok());
+            if results.0
+                && results.1
+                && results.2
+                && results.3
+                && results.4
+                && results.5
+                && results.6
+            {
+                return Ok(());
+            }
+            return Err(Error::other("zuu detect error"));
         }
-        if Command::new("npm")
-            .arg("doctor")
-            .stderr(File::create("zuu/stderr/doctor")?)
-            .stdout(File::create("zuu/stdout/doctor")?)
-            .current_dir(".")
-            .spawn()
-            .expect("npm")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.5 = true;
-            assert!(ok(&mut output, "The health of your npm environment is ok", 6).is_ok());
-        } else {
-            results.5 = false;
-            assert!(ko(&mut output, "The health of your npm environment is bad", 6).is_ok());
-        }
-        if Command::new("composer")
-            .arg("outdated")
-            .stderr(File::create("zuu/stderr/outdated")?)
-            .stdout(File::create("zuu/stdout/outdated")?)
-            .current_dir(".")
-            .spawn()
-            .expect("composer")
-            .wait()
-            .expect("wait")
-            .success()
-        {
-            results.6 = true;
-            assert!(ok(&mut output, "Dependencies are up to date", 7).is_ok());
-        } else {
-            results.6 = false;
-            assert!(ko(&mut output, "Dependencies must be updated", 7).is_ok());
-        }
-        assert!(execute!(&mut output, Print("\n\n")).is_ok());
-        if results.0 && results.1 && results.2 && results.3 && results.4 && results.5 && results.6 {
-            return Ok(());
-        }
-        Err(Error::other("zuu detect error"))
+        Err(Error::new(std::io::ErrorKind::NotFound, "no package.json"))
     }
 
     fn all(&mut self) -> Result<(), Error> {
