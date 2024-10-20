@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN pacman -Syyu haskell-hunit haskell-quickcheck haskell-lazysmallcheck haskell-tasty-inspection-testing haskell-hspec	haskell-hspec-core	haskell-lazysmallcheck 	haskell-leancheck 	haskell-inspection-testing ghc --noconfirm && cargo install --no-default-features --features haskell --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu haskell-hunit haskell-quickcheck haskell-lazysmallcheck haskell-tasty-inspection-testing haskell-hspec	haskell-hspec-core	haskell-lazysmallcheck 	haskell-leancheck 	haskell-inspection-testing ghc --noconfirm

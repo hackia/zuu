@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN pacman -Syyu lua luarocks busted --noconfirm && cargo install --no-default-features --features lua --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu lua luarocks busted --noconfirm

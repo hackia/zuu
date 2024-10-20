@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN paman -Syyu cross --noconfirm && cargo install zuu--no-default-features --features rust --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu cross rustup --noconfirm

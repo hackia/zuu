@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN pacman -Syyu ruby ruby-rdoc rubygems ruby-irb  && cargo install zuu --no-default-features --features ruby --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu ruby ruby-rdoc rubygems ruby-irb --noconfirm && gem install rails

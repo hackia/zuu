@@ -9,17 +9,6 @@ REPO ?= zuu
 
 LANGUAGES := $(shell ls -d ./*/ | xargs -n1 basename)
 
-define spinner
-    pid=$$!; \
-    i=0; \
-    sp='|/-\\'; \
-    while kill -0 $$pid 2>/dev/null; do \
-        i=$$(($$i + 1)); \
-        printf "\r$(COLOR_BLUE)    Working$(COLOR_RESET) $$(echo $${sp:i%${#sp}:1})"; \
-        sleep 0.1; \
-    done
-endef
-
 .PHONY: check-tools
 check-tools:
 	@which docker > /dev/null || (echo -e "$(COLOR_RED)Docker is not installed. Please install Docker.$(COLOR_RESET)"; exit 1)
@@ -32,8 +21,7 @@ push: check-tools $(addprefix push-, $(LANGUAGES))
 
 push-%: build-%
 	@echo -e "$(COLOR_GREEN)    Pushing$(COLOR_RESET) $(COLOR_BOLD)$(USERNAME)/$(REPO):$*$(COLOR_RESET) to Docker Hub..."
-	(docker push $(USERNAME)/$(REPO):$* > /tmp/docker-push-$*.stdout 2> /tmp/docker-push-$*.stderr &)
-	$(spinner)
+	@docker push $(USERNAME)/$(REPO):$*
 	@echo -e "\r$(COLOR_GREEN)    Finished pushing$(COLOR_RESET) $(COLOR_BOLD)$(USERNAME)/$(REPO):$*$(COLOR_RESET)"
 
 .PHONY: build
@@ -41,8 +29,7 @@ build: check-tools $(addprefix build-, $(LANGUAGES))
 
 build-%:
 	@echo -e "$(COLOR_BLUE)    Building$(COLOR_RESET) $(COLOR_BOLD)$(USERNAME)/$(REPO):$*$(COLOR_RESET) image..."
-	(docker buildx build -t $(USERNAME)/$(REPO):$* zuu/$* > /tmp/docker-build-$*.stdout 2> /tmp/docker-build-$*.stderr &)
-	$(spinner)
+	@docker buildx build -t $(USERNAME)/$(REPO):$* ./$*
 	@echo -e "\r$(COLOR_GREEN)    Finished building$(COLOR_RESET) $(COLOR_BOLD)$(USERNAME)/$(REPO):$*$(COLOR_RESET)"
 
 .PHONY: clean
@@ -65,8 +52,8 @@ pull: check-tools $(addprefix pull-, $(LANGUAGES))
 
 pull-%:
 	@echo -e "$(COLOR_GREEN)    Pulling$(COLOR_RESET) $(COLOR_BOLD)$(USERNAME)/$(REPO):$*$(COLOR_RESET) from Docker Hub..."
-	(docker pull $(USERNAME)/$(REPO):$* > /tmp/docker-pull-$*.stdout 2> /tmp/docker-pull-$*.stderr &)
-	$(spinner)
+	@docker pull $(USERNAME)/$(REPO):$*
+	@spinner
 	@echo -e "\r$(COLOR_GREEN)    Finished pulling$(COLOR_RESET) $(COLOR_BOLD)$(USERNAME)/$(REPO):$*$(COLOR_RESET)"
 
 .DEFAULT_GOAL := push

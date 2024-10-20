@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN pacman -Syyu openjdk11 git --noconfirm && curl -s https://get.sdkman.io | bash && source "$HOME/.sdkman/bin/sdkman-init.sh"&& sdk install scala && cargo install zuu  --no-default-features --features scala --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu git --noconfirm

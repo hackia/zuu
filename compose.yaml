@@ -1,0 +1,12 @@
+services:
+  zuu:
+    image: otechdo/zuu:ttyd
+    ports:
+      - 7681:7681
+    environment:
+      - TESTS=true
+      - FORMAT=true
+      - LINT=true
+      - AUDIT=true
+      - LICENSE=true
+      - EDITOR=vim

@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN apk add --no-cache bash julia && cargo install --no-default-features --features julia --features cli  --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu julia --noconfirm

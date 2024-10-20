@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN pacman -Syyu openjdk11 groovy --noconfirm && cargo install zuu --no-default-features --features groovy --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu groovy --noconfirm

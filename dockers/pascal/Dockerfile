@@ -1,2 +1,2 @@
-FROM otechdo/zuu
+FROM otechdo/zuu:latest
 RUN pacman -Syyu fpc --noconfirm

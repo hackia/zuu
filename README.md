@@ -11,16 +11,23 @@ Zuu is a continuous verification tool for multiple programming languages.
 It allows you to run tests, check code formatting, perform security audits, and more, based on the configured programming language.
 
 ## Table of Contents
-- [Features](#features)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Customisation](#customisation)
-- [Continuous Integration](#continuous-integration)
-  - [GitHub Actions](#github-actions)
-  - [Travis CI](#travis-ci)
-- [Contributing](#contributing)
-- [License](#license)
+- [Zuu Project](#zuu-project)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+  - [Zuu Configuration Options](#zuu-configuration-options)
+    - [Available Options](#available-options)
+    - [Usage](#usage)
+      - [Running Locally:](#running-locally)
+      - [Using Docker Compose:](#using-docker-compose)
+    - [Customizing Options in Docker:](#customizing-options-in-docker)
+  - [Customisation](#customisation)
+  - [Continuous Integration](#continuous-integration)
+    - [GitHub Actions](#github-actions)
+    - [Travis CI](#travis-ci)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## Features
 
@@ -113,7 +120,7 @@ cargo build --no-default-features --features "rust"
 
 Zuu provides several options that you can control via environment variables to customize the checks it performs. The configuration options allow you to enable or disable specific tasks such as testing, linting, formatting checks, security audits, and license validation.
 
-### Available Options:
+### Available Options
 
 | Environment Variable | Description                                      | Default |
 |----------------------|--------------------------------------------------|---------|

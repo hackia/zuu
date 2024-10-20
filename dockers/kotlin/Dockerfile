@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN apk add --no-cache bash openjdk11 git && curl -s https://get.sdkman.io | bash && source "${HOME}/.sdkman/bin/sdkman-init.sh" && sdk install kotlin && cargo install --no-default-features --features kotlin --features cli --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu git kotlin --noconfirm

@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN pacman -Syyu junit --noconfirm && cargo install --no-default-features --features java --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu junit --noconfirm

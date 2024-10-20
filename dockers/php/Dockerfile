@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN PACMAN -Syyu php imagemagick phpcov composer imagemagick php-snuffleupagus php-redis php-sqlite php-imagick php-pgsql librsvg php-gd  php-apcu  --noconfirm  && cargo install zuu --no-default-features --features php --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu php imagemagick  imagemagick php-redis php-sqlite php-imagick php-pgsql librsvg php-gd  php-apcu --noconfirm

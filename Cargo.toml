@@ -9,42 +9,108 @@ authors = ["Willy Micieli"]
 repository = "https://github.com/otechdo/zuu"
 description = "A program to check your code quality before all commit"
 keywords = ["lint", "quality", "prevention", "Maintainability", "optimization"]
-[dependencies]
 
-[features]
-default = ["rust"]
-bash = []
-c = []
-clojure = []
-cobol = []
-crystal = []
-d = []
-dart = []
-elixir = []
-erlang = []
-fortran = []
-fsharp = []
-go = []
-groovy = []
-haskell = []
-java = []
-julia = []
-kotlin = []
-lua = []
-matlab = []
-nim = []
-nodejs = []
-objc = []
-ocaml = []
-perl = []
-php = []
-python = []
-r = []
-ruby = []
-rust = []
-scala = []
-swift = []
-tcl = []
-typescript = []
-vhdl = []
-vlang = []
+[[bin]]
+name = "bash-audit"
+
+[[bin]]
+name = "basic-audit"
+
+[[bin]]
+name = "c-audit"
+
+[[bin]]
+name = "cpp-audit"
+
+[[bin]]
+name = "crystal-audit"
+
+[[bin]]
+name = "d-audit"
+
+[[bin]]
+name = "dart-audit"
+
+[[bin]]
+name = "elixir-audit"
+
+[[bin]]
+name = "erlang-audit"
+
+[[bin]]
+name = "fortran-audit"
+
+[[bin]]
+name = "fsharp-audit"
+
+[[bin]]
+name = "go-audit"
+
+[[bin]]
+name = "groovy-audit"
+
+[[bin]]
+name = "haskell-audit"
+
+[[bin]]
+name = "java-audit"
+
+[[bin]]
+name = "julia-audit"
+
+[[bin]]
+name = "kotlin-audit"
+
+[[bin]]
+name = "lua-audit"
+
+[[bin]]
+name = "ocaml-audit"
+
+[[bin]]
+name = "matlab-audit"
+
+[[bin]]
+name = "nim-audit"
+
+[[bin]]
+name = "nodejs-audit"
+
+[[bin]]
+name = "objective-c-audit"
+
+[[bin]]
+name = "perl-audit"
+
+[[bin]]
+name = "php-audit"
+
+[[bin]]
+name = "python-audit"
+
+[[bin]]
+name = "r-audit"
+
+[[bin]]
+name = "ruby-audit"
+
+[[bin]]
+name = "rust-audit"
+
+[[bin]]
+name = "scala-audit"
+
+[[bin]]
+name = "swift-audit"
+
+[[bin]]
+name = "tcl-audit"
+
+[[bin]]
+name = "typescript-audit"
+
+[[bin]]
+name = "vhdl-audit"
+
+[[bin]]
+name = "vlang-audit"

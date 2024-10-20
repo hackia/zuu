@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN pacman -Syyu openjdk11 clojure   leiningen  --noconfirm && cargo install zuu --no-default-features --features clojure --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu clojure leiningen  --noconfirm

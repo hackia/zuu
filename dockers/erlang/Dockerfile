@@ -1,2 +1,2 @@
-FROM otechdo/zuu
-RUN pacman -Syyu erlang --noconfirm && cargo install --no-default-features --features erlang --root /usr/local
+FROM otechdo/zuu:latest
+RUN pacman -Syyu erlang --noconfirm

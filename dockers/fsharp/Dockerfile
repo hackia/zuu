@@ -1,3 +1,2 @@
-FROM otechdo/zuu
-RUN pacman -Syyu mono mono-dev && cargo install --no-default-features --features fsharp --root /usr/local
-
+FROM otechdo/zuu:latest
+RUN pacman -Syyu mono --noconfirm
