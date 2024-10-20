@@ -290,7 +290,8 @@ impl Zuu {
     }
 
     fn php(&mut self) -> Result<(), Error> {
-        let mut results: (bool, bool, bool, bool, bool) = (false, false, false, false, false);
+        let mut results: (bool, bool, bool, bool, bool, bool) =
+            (false, false, false, false, false, false);
         let mut output: Stdout = stdout();
         execute!(&mut output, Clear(ClearType::All)).expect("msg");
         if Command::new("composer")
@@ -380,8 +381,25 @@ impl Zuu {
             results.4 = false;
             assert!(ko(&mut output, FORMAT_ERR, 5).is_ok());
         }
+        if Command::new("composer")
+            .arg("outdated")
+            .stderr(File::create("zuu/stderr/outdated")?)
+            .stdout(File::create("zuu/stdout/outdated")?)
+            .current_dir(".")
+            .spawn()
+            .expect("composer")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.5 = true;
+            assert!(ok(&mut output, "Dependencies are up to date", 6).is_ok());
+        } else {
+            results.5 = false;
+            assert!(ko(&mut output, "Dependencies must be updated", 6).is_ok());
+        }
         assert!(execute!(&mut output, Print("\n\n")).is_ok());
-        if results.0 && results.1 && results.2 && results.3 && results.4 {
+        if results.0 && results.1 && results.2 && results.3 && results.4 && results.5 {
             return Ok(());
         }
         Err(Error::other("zuu detect error"))
