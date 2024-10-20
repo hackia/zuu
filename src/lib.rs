@@ -405,6 +405,139 @@ impl Zuu {
         Err(Error::other("zuu detect error"))
     }
 
+    fn js(&mut self) -> Result<(), Error> {
+        let mut results: (bool, bool, bool, bool, bool, bool, bool) =
+            (false, false, false, false, false, false, false);
+        let mut output: Stdout = stdout();
+        execute!(&mut output, Clear(ClearType::All)).expect("msg");
+        if Command::new("npm")
+            .arg("audit")
+            .stderr(File::create("zuu/stderr/audit")?)
+            .stdout(File::create("zuu/stdout/audit")?)
+            .current_dir(".")
+            .spawn()
+            .expect("npm")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.0 = true;
+            assert!(ok(&mut output, "No vulnerabilities founded", 1).is_ok());
+        } else {
+            assert!(ko(&mut output, "Audit detect vulnerabilities", 1).is_ok());
+            results.0 = false;
+        }
+        if Command::new("npm")
+            .arg("outdated")
+            .stderr(File::create("zuu/stderr/outdated")?)
+            .stdout(File::create("zuu/stdout/outdated")?)
+            .current_dir(".")
+            .spawn()
+            .expect("npm")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.1 = true;
+            assert!(ok(&mut output, "All dependencies are up to date", 2).is_ok());
+        } else {
+            results.1 = false;
+            assert!(ko(&mut output, "Dependencies must be updated", 2).is_ok());
+        }
+        if Command::new("npm")
+            .arg("audit")
+            .stderr(File::create("zuu/stderr/audit")?)
+            .stdout(File::create("zuu/stdout/audit")?)
+            .current_dir(".")
+            .spawn()
+            .expect("cargo")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.2 = true;
+            assert!(ok(&mut output, "No audit errors founded", 3).is_ok());
+        } else {
+            results.2 = false;
+            assert!(ko(&mut output, "Audit errors has been founded", 3).is_ok());
+        }
+        if Command::new("npm")
+            .arg("run")
+            .arg("lint")
+            .stderr(File::create("zuu/stderr/lint")?)
+            .stdout(File::create("zuu/stdout/lint")?)
+            .current_dir(".")
+            .spawn()
+            .expect("npm")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.3 = true;
+            assert!(ok(&mut output, "No lint errors founded", 4).is_ok());
+        } else {
+            results.3 = false;
+            assert!(ko(&mut output, "Lint errors has been founded", 4).is_ok());
+        }
+
+        if Command::new("npm")
+            .arg("test")
+            .stderr(File::create("zuu/stderr/tests")?)
+            .stdout(File::create("zuu/stdout/tests")?)
+            .current_dir(".")
+            .spawn()
+            .expect("test")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.4 = true;
+            assert!(ok(&mut output, "All tests passes", 5).is_ok());
+        } else {
+            results.4 = false;
+            assert!(ko(&mut output, TEST_ERR, 5).is_ok());
+        }
+        if Command::new("npm")
+            .arg("doctor")
+            .stderr(File::create("zuu/stderr/doctor")?)
+            .stdout(File::create("zuu/stdout/doctor")?)
+            .current_dir(".")
+            .spawn()
+            .expect("npm")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.5 = true;
+            assert!(ok(&mut output, "The health of your npm environment is ok", 6).is_ok());
+        } else {
+            results.5 = false;
+            assert!(ko(&mut output, "The health of your npm environment is bad", 6).is_ok());
+        }
+        if Command::new("composer")
+            .arg("outdated")
+            .stderr(File::create("zuu/stderr/outdated")?)
+            .stdout(File::create("zuu/stdout/outdated")?)
+            .current_dir(".")
+            .spawn()
+            .expect("composer")
+            .wait()
+            .expect("wait")
+            .success()
+        {
+            results.6 = true;
+            assert!(ok(&mut output, "Dependencies are up to date", 7).is_ok());
+        } else {
+            results.6 = false;
+            assert!(ko(&mut output, "Dependencies must be updated", 7).is_ok());
+        }
+        assert!(execute!(&mut output, Print("\n\n")).is_ok());
+        if results.0 && results.1 && results.2 && results.3 && results.4 && results.5 && results.6 {
+            return Ok(());
+        }
+        Err(Error::other("zuu detect error"))
+    }
+
     fn all(&mut self) -> Result<(), Error> {
         self.checked.insert(
             Checked::License,
@@ -468,6 +601,7 @@ impl Zuu {
         match self.language {
             Language::Rust => zuu_exit(&self.rust()),
             Language::Php => zuu_exit(&self.php()),
+            Language::Nodejs | Language::TypeScript => zuu_exit(&self.js()),
             Language::Unknown => ExitCode::FAILURE,
             _ => zuu_exit(&self.all()),
         }
