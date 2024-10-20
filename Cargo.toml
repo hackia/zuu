@@ -111,3 +111,6 @@ name = "vhdl-audit"
 
 [[bin]]
 name = "vlang-audit"
+
+[dependencies]
+crossterm = "0.28.1"
