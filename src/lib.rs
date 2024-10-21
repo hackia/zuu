@@ -13,7 +13,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 #[doc = "All checkup to execute for rust"]
-const ZUU_RUST_TASK : [&str;9]  =  [
+pub const ZUU_RUST_TASK : [&str;9]  =  [
     "verify-project",
     "deny check",
     "check",
@@ -25,7 +25,7 @@ const ZUU_RUST_TASK : [&str;9]  =  [
     "clippy -- -D clippy::cargo -D clippy::complexity -D clippy::style -D clippy::all -D clippy::perf -D clippy::correctness -D clippy::pedantic -D clippy::suspicious"
 ];
 #[doc = "All checkup success messages"]
-const ZUU_RUST_TASK_TITLES: [&str; 9] = [
+pub const ZUU_RUST_TASK_TITLES: [&str; 9] = [
     "Checking the project",
     "Checking project licenses",
     "Checking the build dependencies",
@@ -37,7 +37,7 @@ const ZUU_RUST_TASK_TITLES: [&str; 9] = [
     "Checking source code",
 ];
 #[doc = "All checkup success messages"]
-const ZUU_RUST_TASK_OK: [&str; 9] = [
+pub const ZUU_RUST_TASK_OK: [&str; 9] = [
     "The project is valid",
     "No dependencies license problem",
     "No packages or dependencies errors",
@@ -49,7 +49,7 @@ const ZUU_RUST_TASK_OK: [&str; 9] = [
     "Your code is validated",
 ];
 #[doc = "All checkup failures messages"]
-const ZUU_RUST_TASK_KO: [&str; 9] = [
+pub const ZUU_RUST_TASK_KO: [&str; 9] = [
     "The project is not valid",
     "Dependencies license problem has been founded",
     "Packages or dependencies errors has been founded",
@@ -62,7 +62,7 @@ const ZUU_RUST_TASK_KO: [&str; 9] = [
 ];
 
 #[doc = "All checkup failures messages"]
-const ZUU_RUST_TASK_OUTPUT_FILES: [&str; 9] = [
+pub const ZUU_RUST_TASK_OUTPUT_FILES: [&str; 9] = [
     "project",
     "licenses",
     "checks",
@@ -354,8 +354,17 @@ impl Zuu {
         Self { language: lang }
     }
 
-    #[doc = "Check a cargo project"]
-    fn rust(&mut self) -> Result<(), Error> {
+    ///
+    /// # Rust
+    ///
+    /// check rust code
+    ///
+    /// # Errors
+    ///
+    /// On check failures
+    ///
+    ///
+    pub fn rust(&mut self) -> Result<(), Error> {
         if Path::new("Cargo.toml").is_file() {
             let mut results: Vec<bool> = Vec::new();
             let mut output: Stdout = stdout();
@@ -425,97 +434,6 @@ impl Zuu {
         .is_ok());
         Ok(())
     }
-    fn js(&mut self) -> Result<(), Error> {
-        if Path::new("package.json").is_file() {
-            let mut results = Vec::<bool>::new();
-            let mut output: Stdout = stdout();
-            execute!(&mut output, Clear(ClearType::All)).expect("msg");
-            if exec(
-                &mut output,
-                "Auditing source code",
-                Command::new("npm").arg("audit"),
-                "audit",
-                1,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                ok(&mut output, "No vulnerabilities founded", 1);
-            } else {
-                ko(&mut output, "Security vulnerabilities detected", 1);
-                results.push(false);
-            }
-
-            if exec(
-                &mut output,
-                "Checking dependencies",
-                Command::new("npm").arg("outdated"),
-                "outdated",
-                2,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                ok(&mut output, "All dependencies are up to date", 2);
-            } else {
-                ko(&mut output, "Dependencies must be updated", 2);
-                results.push(false);
-            }
-            if exec(
-                &mut output,
-                "Checking licenses",
-                Command::new("npm").arg("run").arg("licenses"),
-                "licences",
-                3,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                ok(
-                    &mut output,
-                    "All dependencies licenses are compatibles to the project",
-                    3,
-                );
-            } else {
-                ko(&mut output, "Dependencies licences must be updated", 3);
-                results.push(false);
-            }
-            if exec(
-                &mut output,
-                "Testing source code",
-                Command::new("npm").arg("test"),
-                "tests",
-                4,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                ok(&mut output, "All tests passes", 4);
-            } else {
-                ko(&mut output, "Test have failures", 4);
-                results.push(false);
-            }
-
-            if exec(
-                &mut output,
-                "Testing source code format",
-                Command::new("npm").arg("run").arg("fmt"),
-                "fmt",
-                5,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                ok(&mut output, "Source code respect standard", 5);
-            } else {
-                ko(&mut output, "Source code must be reformated", 5);
-                results.push(false);
-            }
-            return self.end(&mut output, &results);
-        }
-        Err(Error::new(ErrorKind::NotFound, "no composer.json"))
-    }
-
     ///
     /// # Run
     ///
@@ -532,7 +450,6 @@ impl Zuu {
         );
         match self.language {
             Language::Rust => zuu_exit(&self.rust()),
-            Language::Nodejs | Language::TypeScript => zuu_exit(&self.js()),
             _ => ExitCode::FAILURE,
         }
     }
