@@ -93,7 +93,6 @@ pub fn ok(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()>
 
     execute!(
         output,
-        MoveTo(0, 0),
         SetForegroundColor(Color::Green),
         MoveTo(0, x),
         Print("*"),
@@ -122,7 +121,6 @@ pub fn ko(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()>
 
     execute!(
         output,
-        MoveTo(0, 0),
         SetForegroundColor(Color::Red),
         MoveTo(0, x),
         Print("*"),
@@ -208,7 +206,6 @@ pub fn exec(
 
     spinner_done.store(true, Ordering::SeqCst);
     spinner_thread.join().unwrap();
-    assert!(execute!(stdout(), MoveTo(0, 1), Clear(ClearType::CurrentLine)).is_ok());
     assert!(execute!(stdout(), MoveTo(0, x), Clear(ClearType::CurrentLine)).is_ok());
     if output {
         return Ok(());
@@ -284,14 +281,14 @@ impl Zuu {
                 "Checking licenses",
                 &mut Command::new("cargo").arg("deny").arg("check"),
                 "license",
-                2,
+                1,
             )
             .is_ok()
             {
                 results.push(true);
-                assert!(ok(&mut output, LICENSE_OK, 2).is_ok());
+                assert!(ok(&mut output, LICENSE_OK, 1).is_ok());
             } else {
-                assert!(ko(&mut output, LICENSE_ERR, 2).is_ok());
+                assert!(ko(&mut output, LICENSE_ERR, 1).is_ok());
                 results.push(false);
             }
             if exec(
@@ -299,60 +296,60 @@ impl Zuu {
                 "Auditing code",
                 &mut Command::new("cargo").arg("audit"),
                 "audit",
-                3,
+                2,
             )
             .is_ok()
             {
                 results.push(true);
-                assert!(ok(&mut output, AUDIT_OK, 3).is_ok());
+                assert!(ok(&mut output, AUDIT_OK, 2).is_ok());
             } else {
                 results.push(false);
-                assert!(ko(&mut output, AUDIT_ERR, 3).is_ok());
+                assert!(ko(&mut output, AUDIT_ERR, 2).is_ok());
             }
             if exec(
                 &mut output,
                 "Checking code",
                 &mut Command::new("cargo").arg("clippy"),
                 "lint",
-                4,
+                3,
             )
             .is_ok()
             {
                 results.push(true);
-                assert!(ok(&mut output, LINT_OK, 4).is_ok());
+                assert!(ok(&mut output, LINT_OK, 3).is_ok());
             } else {
                 results.push(false);
-                assert!(ko(&mut output, LINT_ERR, 4).is_ok());
+                assert!(ko(&mut output, LINT_ERR, 3).is_ok());
             }
             if exec(
                 &mut output,
                 "Running tests",
                 &mut Command::new("cargo").arg("test").arg("--no-fail-fast"),
                 "tests",
-                5,
+                4,
             )
             .is_ok()
             {
                 results.push(true);
-                assert!(ok(&mut output, TEST_OK, 5).is_ok());
+                assert!(ok(&mut output, TEST_OK, 4).is_ok());
             } else {
                 results.push(false);
-                assert!(ko(&mut output, TEST_ERR, 5).is_ok());
+                assert!(ko(&mut output, TEST_ERR, 4).is_ok());
             }
             if exec(
                 &mut output,
                 "Checking code format",
                 &mut Command::new("cargo").arg("fmt").arg("--check"),
                 "fmt",
-                6,
+                5,
             )
             .is_ok()
             {
                 results.push(true);
-                assert!(ok(&mut output, FORMAT_OK, 6).is_ok());
+                assert!(ok(&mut output, FORMAT_OK, 5).is_ok());
             } else {
                 results.push(false);
-                assert!(ko(&mut output, FORMAT_ERR, 6).is_ok());
+                assert!(ko(&mut output, FORMAT_ERR, 5).is_ok());
             }
             return self.end(&mut output, results);
         }
