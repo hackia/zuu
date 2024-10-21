@@ -2,7 +2,6 @@ use crossterm::cursor::{Hide, MoveTo, Show};
 use crossterm::execute;
 use crossterm::style::{Color, Print, SetForegroundColor};
 use crossterm::terminal::{size, Clear, ClearType};
-use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
 use std::io::{stdout, Error, ErrorKind, Stdout};
 use std::path::Path;
@@ -13,22 +12,71 @@ use std::thread;
 use std::thread::sleep;
 use std::time::Duration;
 
-pub const FORMAT_OK: &str = "Source code is formatted correctly";
-pub const FORMAT_ERR: &str = "Source code is not formatted correctly. Please run the formatter";
-pub const AUDIT_OK: &str = "No security vulnerabilities in the code";
-pub const AUDIT_ERR: &str = "Security vulnerabilities detected in the code";
-pub const TEST_OK: &str = "All tests pass";
-pub const TEST_ERR: &str = "Some tests did not pass. Please review the test results";
-pub const LINT_OK: &str = "Your code respect style requirements";
-pub const LINT_ERR: &str = "Your code does not meet style requirements";
-pub const LICENSE_ERR: &str = "Some dependencies may have incompatible licenses";
-pub const LICENSE_OK: &str = "No dependencies incompatible licenses";
-pub const TARGET_FMT: &str = "zuu-fmt";
-pub const TARGET_AUDIT: &str = "zuu-audit";
-pub const TARGET_TEST: &str = "zuu-test";
-pub const TARGET_LICENSE: &str = "zuu-license";
-pub const TARGET_LINT: &str = "zuu-lint";
+#[doc = "All checkup to execute for rust"]
+const ZUU_RUST_TASK : [&str;9]  =  [
+    "verify-project",
+    "deny check",
+    "check",
+    "audit",
+    "test",
+    "fmt --check",
+    "doc --no-deps",
+    "outdated",
+    "clippy -- -D clippy::cargo -D clippy::complexity -D clippy::style -D clippy::all -D clippy::perf -D clippy::correctness -D clippy::pedantic -D clippy::suspicious"
+];
+#[doc = "All checkup success messages"]
+const ZUU_RUST_TASK_TITLES: [&str; 9] = [
+    "Checking the project",
+    "Checking project licenses",
+    "Checking the build dependencies",
+    "Checking security vulnerabilities",
+    "Running all tests",
+    "Checking code format",
+    "Generating documentation",
+    "Checking dependencies versions",
+    "Checking source code",
+];
+#[doc = "All checkup success messages"]
+const ZUU_RUST_TASK_OK: [&str; 9] = [
+    "The project is valid",
+    "No dependencies license problem",
+    "No packages or dependencies errors",
+    "No vulnerabilities has been founded",
+    "All test passes",
+    "Your code respect standard",
+    "Doc generated successfully",
+    "All dependencies are up to date",
+    "Your code is validated",
+];
+#[doc = "All checkup failures messages"]
+const ZUU_RUST_TASK_KO: [&str; 9] = [
+    "The project is not valid",
+    "Dependencies license problem has been founded",
+    "Packages or dependencies errors has been founded",
+    "Security vulnerabilities has been founded",
+    "Test have failure",
+    "Code don't respect the coding standard",
+    "Failed to generate documentation",
+    "Dependencies must be updated",
+    "Your code contains errors",
+];
 
+#[doc = "All checkup failures messages"]
+const ZUU_RUST_TASK_OUTPUT_FILES: [&str; 9] = [
+    "project",
+    "licenses",
+    "checks",
+    "audit",
+    "tests",
+    "fmt",
+    "documentation",
+    "dependencies",
+    "lint",
+];
+
+#[doc = "The waiting task spinner strings"]
+const SPINNERS: [&str; 4] = [". ", "..", ".:", "::"];
+#[doc = "All supported languages"]
 pub enum Language {
     Rust,
     Go,
@@ -68,400 +116,315 @@ pub enum Language {
     VHDL,
     Unknown,
 }
-#[derive(PartialEq, Eq, Hash)]
-pub enum Checked {
-    Fmt,
-    Audit,
-    Test,
-    License,
-    Lint,
-}
 
-pub fn zuu_exit(status: &Result<(), Error>) -> ExitCode {
+#[doc = "return the status code of the code checkup"]
+#[must_use]
+pub const fn zuu_exit(status: &Result<(), Error>) -> ExitCode {
     if status.is_err() {
         return ExitCode::FAILURE;
     }
     ExitCode::SUCCESS
 }
-pub fn ok(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()> {
-    let (cols, _rows) = size().expect("failed to get terminal size");
 
-    let status: &str = "[ ok ]";
-
-    let status_len: u16 = status.len() as u16;
-    let status_position: u16 = cols.saturating_sub(status_len);
-
-    execute!(
-        output,
-        SetForegroundColor(Color::Green),
-        MoveTo(0, x),
-        Print("*"),
-        MoveTo(2, x),
-        SetForegroundColor(Color::White),
-        Print(description),
-        MoveTo(status_position, 1),
-        SetForegroundColor(Color::Blue),
-        MoveTo(status_position, x),
-        Print("["),
-        SetForegroundColor(Color::Green),
-        Print(" ok "),
-        SetForegroundColor(Color::Blue),
-        Print("]"),
-        SetForegroundColor(Color::Reset),
-    )
+///
+/// # Ok
+///
+/// Print a success message
+///
+/// # Panics
+///
+/// On fail to print the description
+///
+/// # Errors
+///
+pub fn ok(output: &mut Stdout, description: &str, x: usize) {
+    if let Ok((cols, _rows)) = size() {
+        if let Ok(y) = u16::try_from(x) {
+            let status: &str = "[ ok ]";
+            if let Ok(len) = u16::try_from(status.len()) {
+                let status_position: u16 = cols.saturating_sub(len);
+                assert!(
+                    execute!(
+                        output,
+                        SetForegroundColor(Color::Green),
+                        MoveTo(0, y),
+                        Print("*"),
+                        MoveTo(2, y),
+                        SetForegroundColor(Color::White),
+                        Print(description),
+                        MoveTo(status_position, 1),
+                        SetForegroundColor(Color::Blue),
+                        MoveTo(status_position, y),
+                        Print("["),
+                        SetForegroundColor(Color::Green),
+                        Print(" ok "),
+                        SetForegroundColor(Color::Blue),
+                        Print("]"),
+                        SetForegroundColor(Color::Reset),
+                    )
+                    .is_ok(),
+                    "Failed to print success message"
+                );
+            }
+        } else {
+            assert!(
+                execute!(
+                    output,
+                    SetForegroundColor(Color::Green),
+                    MoveTo(0, 1),
+                    Print("*"),
+                    MoveTo(2, 1),
+                    SetForegroundColor(Color::White),
+                    Print(description),
+                    SetForegroundColor(Color::Reset),
+                )
+                .is_ok(),
+                "Failed to print success message"
+            );
+        }
+    }
+}
+///
+/// # Ko
+///
+/// Print an error message
+///
+/// # Panics
+///
+/// On fail to print the description
+///
+pub fn ko(output: &mut Stdout, description: &str, x: usize) {
+    if let Ok((cols, _row)) = size() {
+        if let Ok(y) = u16::try_from(x) {
+            let status: &str = "[ !! ]";
+            if let Ok(len) = u16::try_from(status.len()) {
+                let status_position: u16 = cols.saturating_sub(len);
+                assert!(
+                    execute!(
+                        output,
+                        SetForegroundColor(Color::Red),
+                        MoveTo(0, y),
+                        Print("*"),
+                        MoveTo(2, y),
+                        SetForegroundColor(Color::White),
+                        Print(description),
+                        SetForegroundColor(Color::Blue),
+                        MoveTo(status_position, y),
+                        Print("["),
+                        SetForegroundColor(Color::Red),
+                        Print(" !! "),
+                        SetForegroundColor(Color::Blue),
+                        Print("]"),
+                        SetForegroundColor(Color::Reset),
+                    )
+                    .is_ok(),
+                    "Failed to print error message"
+                );
+            }
+        }
+    } else {
+        assert!(
+            execute!(output, Print(description)).is_ok(),
+            "Failed to print error message"
+        );
+    }
 }
 
-pub fn ko(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()> {
-    let (cols, _rows) = size().expect("failed to get terminal size");
-
-    let status: &str = "[ !! ]";
-
-    let status_len: u16 = status.len() as u16;
-    let status_position: u16 = cols.saturating_sub(status_len);
-
-    execute!(
-        output,
-        SetForegroundColor(Color::Red),
-        MoveTo(0, x),
-        Print("*"),
-        MoveTo(2, x),
-        SetForegroundColor(Color::White),
-        Print(description),
-        SetForegroundColor(Color::Blue),
-        MoveTo(status_position, x),
-        Print("["),
-        SetForegroundColor(Color::Red),
-        Print(" !! "),
-        SetForegroundColor(Color::Blue),
-        Print("]"),
-        SetForegroundColor(Color::Reset),
-    )
-}
-
+///
+/// # Exec
+///
+/// Run a check by executing a command
+///
+/// # Panics
+///
+/// On cross term failed to print
+///
+/// # Errors
+///
+/// On failure
+///
 pub fn exec(
     output: &mut Stdout,
     description: &'static str,
     cmd: &mut Command,
     f: &'static str,
-    x: u16,
+    x: usize,
 ) -> std::io::Result<()> {
     let spinner_done = Arc::new(AtomicBool::new(false));
     let spinner_done_clone = Arc::clone(&spinner_done);
-    let (cols, _rows) = size().expect("failed to get terminal size");
-    let status: &str = "   ";
-    let status_len: u16 = status.len() as u16;
-    let status_position: u16 = cols.saturating_sub(status_len);
-    assert!(execute!(
-        output,
-        MoveTo(0, x),
-        SetForegroundColor(Color::Green),
-        Print("*"),
-        MoveTo(2, x),
-        SetForegroundColor(Color::White),
-        Print(description),
-        MoveTo(status_position, x),
-        SetForegroundColor(Color::Green),
-        Print(" "),
-        SetForegroundColor(Color::Reset),
-    )
-    .is_ok());
-    let spinner_thread = thread::spawn(move || {
-        let mut output = stdout();
-        while !spinner_done_clone.load(Ordering::SeqCst) {
-            let status: &str = "[ :: ]";
-            let status_len: u16 = status.len() as u16;
-            let spinner_chars = [". ", "..", ".:", "::"];
-            let status_position: u16 = cols.saturating_sub(status_len);
-            for spin in &spinner_chars {
+    if let Ok((cols, _row)) = size() {
+        let status: &str = "   ";
+        if let Ok(len) = u16::try_from(status.len()) {
+            if let Ok(y) = u16::try_from(x) {
+                let status_position: u16 = cols.saturating_sub(len);
                 assert!(execute!(
                     output,
-                    Hide,
+                    MoveTo(0, y),
                     SetForegroundColor(Color::Green),
-                    MoveTo(0, x),
                     Print("*"),
-                    MoveTo(2, x),
+                    MoveTo(2, y),
                     SetForegroundColor(Color::White),
                     Print(description),
-                    MoveTo(status_position, x),
-                    SetForegroundColor(Color::Blue),
-                    Print("["),
+                    MoveTo(status_position, y),
                     SetForegroundColor(Color::Green),
-                    Print(format!(" {spin} ")),
-                    SetForegroundColor(Color::Blue),
-                    Print("]"),
+                    Print(" "),
                     SetForegroundColor(Color::Reset),
                 )
                 .is_ok());
-                sleep(Duration::from_millis(400));
+                let spinner_thread = thread::spawn(move || {
+                    let mut output = stdout();
+                    while !spinner_done_clone.load(Ordering::SeqCst) {
+                        let status: &str = "[ :: ]";
+                        if let Ok(len) = u16::try_from(status.len()) {
+                            let status_position: u16 = cols.saturating_sub(len);
+                            for spin in SPINNERS {
+                                assert!(execute!(
+                                    output,
+                                    Hide,
+                                    SetForegroundColor(Color::Green),
+                                    MoveTo(0, y),
+                                    Print("*"),
+                                    MoveTo(2, y),
+                                    SetForegroundColor(Color::White),
+                                    Print(description),
+                                    MoveTo(status_position, y),
+                                    SetForegroundColor(Color::Blue),
+                                    Print("["),
+                                    SetForegroundColor(Color::Green),
+                                    Print(format!(" {spin} ")),
+                                    SetForegroundColor(Color::Blue),
+                                    Print("]"),
+                                    SetForegroundColor(Color::Reset),
+                                )
+                                .is_ok());
+                                sleep(Duration::from_millis(400));
+                            }
+                        }
+                    }
+                });
+                let output = cmd
+                    .stdout(
+                        File::create(format!("zuu/stdout/{f}")).expect("failed to create output"),
+                    )
+                    .stderr(
+                        File::create(format!("zuu/stderr/{f}")).expect("failed to create output"),
+                    )
+                    .spawn()?
+                    .wait()?
+                    .success();
+
+                spinner_done.store(true, Ordering::SeqCst);
+                spinner_thread.join().unwrap();
+                assert!(execute!(stdout(), MoveTo(0, y), Clear(ClearType::CurrentLine)).is_ok());
+                if output {
+                    return Ok(());
+                }
             }
         }
-    });
-
-    let output = cmd
-        .stdout(File::create(format!("zuu/stdout/{f}")).expect("failed to create output"))
-        .stderr(File::create(format!("zuu/stderr/{f}")).expect("failed to create output"))
-        .spawn()?
-        .wait()?
-        .success();
-
-    spinner_done.store(true, Ordering::SeqCst);
-    spinner_thread.join().unwrap();
-    assert!(execute!(stdout(), MoveTo(0, x), Clear(ClearType::CurrentLine)).is_ok());
-    if output {
-        return Ok(());
     }
     Err(Error::other("a error encountered"))
 }
-fn check(x: &HashMap<Checked, bool>) -> Result<(), Error> {
-    let mut output: Stdout = stdout();
-    for (i, v) in x {
-        match i {
-            Checked::Fmt => {
-                if v.eq(&true) {
-                    assert!(ok(
-                        &mut output,
-                        "The source code format respect the standard",
-                        0
-                    )
-                    .is_ok());
-                } else {
-                }
-            }
-            Checked::Audit => {
-                if v.eq(&true) {
-                    assert!(ok(&mut output, "No vulnerabilities has been founded", 1).is_ok());
-                } else {
-                }
-            }
-            Checked::Test => {
-                if v.eq(&true) {
-                    assert!(ok(&mut output, "All tests passes", 1).is_ok());
-                } else {
-                }
-            }
-            Checked::License => {
-                if v.eq(&true) {
-                    assert!(ok(&mut output, "No licences problem has bee founded", 1).is_ok());
-                } else {
-                }
-            }
-            Checked::Lint => {
-                if v.eq(&true) {
-                    assert!(ok(&mut output, "No problem detected", 1).is_ok());
-                } else {
-                }
-            }
-        }
-    }
-    Err(Error::other("Zuu has detected errors"))
-}
 pub struct Zuu {
-    checked: HashMap<Checked, bool>,
     language: Language,
 }
+
+///
+/// # Files output
+///
+/// Create zuu directories in order to store command output
+///
+/// # Errors
+///
+/// On no write rights
+///
+pub fn create_zuu() -> Result<(), Error> {
+    if create_dir_all("zuu").is_ok()
+        && create_dir_all("zuu/stdout").is_ok()
+        && create_dir_all("zuu/stderr").is_ok()
+    {
+        Ok(())
+    } else {
+        Err(Error::other(""))
+    }
+}
+
 impl Zuu {
-    pub fn new(lang: Language) -> Self {
-        create_dir_all("zuu").expect("msg");
-        create_dir_all("zuu/stderr").expect("msg");
-        create_dir_all("zuu/stdout").expect("msg");
-        execute!(&mut stdout(), Clear(ClearType::All)).expect("msg");
-        Self {
-            checked: HashMap::new(),
-            language: lang,
-        }
+    #[must_use]
+    pub const fn new(lang: Language) -> Self {
+        Self { language: lang }
     }
 
+    #[doc = "Check a cargo project"]
     fn rust(&mut self) -> Result<(), Error> {
         if Path::new("Cargo.toml").is_file() {
             let mut results: Vec<bool> = Vec::new();
             let mut output: Stdout = stdout();
             execute!(&mut output, Clear(ClearType::All)).expect("msg");
-            if exec(
-                &mut output,
-                "Checking licenses",
-                &mut Command::new("cargo").arg("deny").arg("check"),
-                "license",
-                1,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, LICENSE_OK, 1).is_ok());
-            } else {
-                assert!(ko(&mut output, LICENSE_ERR, 1).is_ok());
-                results.push(false);
+            for (i, task) in ZUU_RUST_TASK.iter().enumerate() {
+                let title = ZUU_RUST_TASK_TITLES.get(i).unwrap_or(&"NO TITLE");
+                let success = ZUU_RUST_TASK_OK.get(i).unwrap_or(&"Success");
+                let failure = ZUU_RUST_TASK_KO.get(i).unwrap_or(&"Failure");
+                let file = ZUU_RUST_TASK_OUTPUT_FILES.get(i).unwrap_or(&"out");
+                if exec(
+                    &mut output,
+                    title,
+                    Command::new("cargo").args(task.split_whitespace()),
+                    file,
+                    i,
+                )
+                .is_ok()
+                {
+                    results.push(true);
+                    ok(&mut output, success, i);
+                } else {
+                    ko(&mut output, failure, i);
+                    results.push(false);
+                }
             }
-            if exec(
-                &mut output,
-                "Auditing code",
-                &mut Command::new("cargo").arg("audit"),
-                "audit",
-                2,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, AUDIT_OK, 2).is_ok());
-            } else {
-                results.push(false);
-                assert!(ko(&mut output, AUDIT_ERR, 2).is_ok());
-            }
-            if exec(
-                &mut output,
-                "Checking code",
-                &mut Command::new("cargo").arg("clippy"),
-                "lint",
-                3,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, LINT_OK, 3).is_ok());
-            } else {
-                results.push(false);
-                assert!(ko(&mut output, LINT_ERR, 3).is_ok());
-            }
-            if exec(
-                &mut output,
-                "Running tests",
-                &mut Command::new("cargo").arg("test").arg("--no-fail-fast"),
-                "tests",
-                4,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, TEST_OK, 4).is_ok());
-            } else {
-                results.push(false);
-                assert!(ko(&mut output, TEST_ERR, 4).is_ok());
-            }
-            if exec(
-                &mut output,
-                "Checking code format",
-                &mut Command::new("cargo").arg("fmt").arg("--check"),
-                "fmt",
-                5,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, FORMAT_OK, 5).is_ok());
-            } else {
-                results.push(false);
-                assert!(ko(&mut output, FORMAT_ERR, 5).is_ok());
-            }
-            return self.end(&mut output, results);
+            return self.end(&mut output, &results);
         }
-       Err(Error::new(ErrorKind::NotFound,"no Cargo.toml"))
+        Err(Error::new(ErrorKind::NotFound, "no Cargo.toml"))
     }
 
-    pub fn end(&mut self, output: &mut Stdout, results: Vec<bool>) -> Result<(), Error> {
-        assert!(execute!(output, Show, Print("\n\n")).is_ok());
+    ///
+    /// # End
+    ///
+    /// Close suite test case for a language
+    ///
+    /// # Panics
+    ///
+    /// On cross term print failure
+    ///
+    /// # Errors
+    ///
+    /// Return error on a checkup failure
+    ///
+    pub fn end(&mut self, output: &mut Stdout, results: &[bool]) -> Result<(), Error> {
         if results.contains(&false) {
+            assert!(execute!(
+                output,
+                Show,
+                SetForegroundColor(Color::Red),
+                Print("\n* "),
+                SetForegroundColor(Color::White),
+                Print("Can't commit check files inside zuu directory for more information\n"),
+                SetForegroundColor(Color::Reset)
+            )
+            .is_ok());
             return Err(Error::other("zuu detect error"));
         }
+        assert!(execute!(
+            output,
+            Show,
+            SetForegroundColor(Color::Green),
+            Print("\n* "),
+            SetForegroundColor(Color::White),
+            Print("Source code can be commited\n"),
+            SetForegroundColor(Color::Reset)
+        )
+        .is_ok());
         Ok(())
     }
-    fn php(&mut self) -> Result<(), Error> {
-        if Path::new("composer.json").is_file() {
-            let mut output: Stdout = stdout();
-            let mut results = Vec::<bool>::new();
-            if exec(
-                &mut output,
-                "Validating the project",
-                &mut Command::new("composer").arg("validate").arg("--strict"),
-                "validate",
-                1,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, "The project is valid", 1).is_ok());
-            } else {
-                assert!(ko(&mut output, "The project is not valid", 1).is_ok());
-                results.push(false);
-            }
-            if exec(
-                &mut output,
-                "Checking the project",
-                &mut Command::new("composer").arg("diagnose"),
-                "diagnose",
-                2,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, "No problem founded", 2).is_ok());
-            } else {
-                assert!(ko(&mut output, "Problems detected", 2).is_ok());
-                results.push(false);
-            }
-            if exec(
-                &mut output,
-                "Auditing the project",
-                &mut Command::new("composer").arg("audit"),
-                "audit",
-                3,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, "No security vulnerabilities founded", 3).is_ok());
-            } else {
-                assert!(ko(&mut output, "Security vulnerabilities founded", 3).is_ok());
-                results.push(false);
-            }
-            if exec(
-                &mut output,
-                "Testing the project",
-                &mut Command::new("composer").arg("test"),
-                "tests",
-                4,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, "All test passes", 4).is_ok());
-            } else {
-                assert!(ko(&mut output, "Test has failures", 4).is_ok());
-                results.push(false);
-            }
-            if exec(
-                &mut output,
-                "Checking source code format",
-                &mut Command::new("composer").arg("fmt"),
-                "fmt",
-                5,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, "Source code format respect standard", 5).is_ok());
-            } else {
-                assert!(ko(&mut output, "Source code must be reformated", 5).is_ok());
-                results.push(false);
-            }
-            if exec(
-                &mut output,
-                "Checking source code format",
-                &mut Command::new("composer").arg("outdated"),
-                "outdated",
-                6,
-            )
-            .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, "Dependencies are up to date", 6).is_ok());
-            } else {
-                assert!(ko(&mut output, "Dependencies must be updated", 6).is_ok());
-                results.push(false);
-            }
-            return self.end(&mut output, results);
-        }
-        Err(Error::new(ErrorKind::NotFound, "no composer.json"))
-    }
-
     fn js(&mut self) -> Result<(), Error> {
         if Path::new("package.json").is_file() {
             let mut results = Vec::<bool>::new();
@@ -470,258 +433,107 @@ impl Zuu {
             if exec(
                 &mut output,
                 "Auditing source code",
-                &mut Command::new("npm").arg("audit"),
+                Command::new("npm").arg("audit"),
                 "audit",
                 1,
             )
-                .is_ok()
+            .is_ok()
             {
                 results.push(true);
-                assert!(ok(&mut output, "No vulnerabilities founded", 1).is_ok());
+                ok(&mut output, "No vulnerabilities founded", 1);
             } else {
-                assert!(ko(&mut output, "Security vulnerabilities detected", 1).is_ok());
+                ko(&mut output, "Security vulnerabilities detected", 1);
                 results.push(false);
             }
 
             if exec(
                 &mut output,
                 "Checking dependencies",
-                &mut Command::new("npm").arg("outdated"),
+                Command::new("npm").arg("outdated"),
                 "outdated",
                 2,
             )
-                .is_ok()
+            .is_ok()
             {
                 results.push(true);
-                assert!(ok(&mut output, "All dependencies are up to date", 2).is_ok());
+                ok(&mut output, "All dependencies are up to date", 2);
             } else {
-                assert!(ko(&mut output, "Dependencies must be updated", 2).is_ok());
+                ko(&mut output, "Dependencies must be updated", 2);
                 results.push(false);
             }
             if exec(
                 &mut output,
                 "Checking licenses",
-                &mut Command::new("npm").arg("run").arg("licenses"),
+                Command::new("npm").arg("run").arg("licenses"),
                 "licences",
                 3,
             )
-                .is_ok()
+            .is_ok()
             {
                 results.push(true);
-                assert!(ok(&mut output, "All dependencies licenses are compatibles to the project", 3).is_ok());
+                ok(
+                    &mut output,
+                    "All dependencies licenses are compatibles to the project",
+                    3,
+                );
             } else {
-                assert!(ko(&mut output, "Dependencies licences must be updated", 3).is_ok());
+                ko(&mut output, "Dependencies licences must be updated", 3);
                 results.push(false);
             }
             if exec(
                 &mut output,
                 "Testing source code",
-                &mut Command::new("npm").arg("test"),
+                Command::new("npm").arg("test"),
                 "tests",
                 4,
             )
-                .is_ok()
+            .is_ok()
             {
                 results.push(true);
-                assert!(ok(&mut output, "All tests passes", 4).is_ok());
+                ok(&mut output, "All tests passes", 4);
             } else {
-                assert!(ko(&mut output, "Test have failures", 4).is_ok());
+                ko(&mut output, "Test have failures", 4);
                 results.push(false);
             }
 
             if exec(
                 &mut output,
                 "Testing source code format",
-                &mut Command::new("npm").arg("run").arg("fmt"),
+                Command::new("npm").arg("run").arg("fmt"),
                 "fmt",
-                5
-            )
-                .is_ok()
-            {
-                results.push(true);
-                assert!(ok(&mut output, "Source code respect standard", 5).is_ok());
-            } else {
-                assert!(ko(&mut output, "Source code must be reformated", 5).is_ok());
-                results.push(false);
-            }
-            return self.end(&mut output, results);
-        }
-        Err(Error::new(ErrorKind::NotFound, "no composer.json"))
-    }
-    fn python(&mut self) -> Result<(), Error> {
-        if Path::new("setup.py").is_file() {
-            let mut results: (bool, bool, bool, bool, bool, bool, bool) =
-                (false, false, false, false, false, false, false);
-            let mut output: Stdout = stdout();
-            if exec(
-                &mut output,
-                "Auditing code",
-                &mut Command::new("bandit").arg("-r").arg("."),
-                "audit",
-                1,
+                5,
             )
             .is_ok()
             {
-                results.0 = true;
-                assert!(ok(&mut output, "No vulnerabilities founded", 2).is_ok());
+                results.push(true);
+                ok(&mut output, "Source code respect standard", 5);
             } else {
-                assert!(ko(&mut output, "Audit detect vulnerabilities", 2).is_ok());
-                results.0 = false;
+                ko(&mut output, "Source code must be reformated", 5);
+                results.push(false);
             }
-            assert!(execute!(&mut output, Clear(ClearType::CurrentLine), Print("\n\n")).is_ok());
-            if results.0 {
-                return Ok(());
-            }
-            return Err(Error::other("zuu detect error"));
+            return self.end(&mut output, &results);
         }
-        Err(Error::new(std::io::ErrorKind::NotFound, "no package.json"))
-    }
-    fn d(&mut self) -> Result<(), Error> {
-        if Path::new("dub.json").is_file() || Path::new("dub.sdl").is_file() {
-            let mut results: (bool, bool, bool) = (false, false, false);
-            let mut output: Stdout = stdout();
-            execute!(&mut output, Clear(ClearType::All)).expect("msg");
-            if Command::new("dub")
-                .arg("test")
-                .stderr(File::create("zuu/stderr/test")?)
-                .stdout(File::create("zuu/stdout/test")?)
-                .current_dir(".")
-                .spawn()
-                .expect("dub")
-                .wait()
-                .expect("wait")
-                .success()
-            {
-                results.0 = true;
-                assert!(ok(&mut output, "All tests passes", 1).is_ok());
-            } else {
-                assert!(ko(&mut output, "Test have failures", 1).is_ok());
-                results.0 = false;
-            }
-            if Command::new("dub")
-                .arg("lint")
-                .arg("--nodeps")
-                .arg("--syntax-check")
-                .stderr(File::create("zuu/stderr/syntax")?)
-                .stdout(File::create("zuu/stdout/syntax")?)
-                .current_dir(".")
-                .spawn()
-                .expect("dub")
-                .wait()
-                .expect("wait")
-                .success()
-            {
-                results.1 = true;
-                assert!(ok(&mut output, "The project respect the syntax", 2).is_ok());
-            } else {
-                results.1 = false;
-                assert!(ko(&mut output, "The project has bad syntax", 2).is_ok());
-            }
-            if Command::new("dub")
-                .arg("lint")
-                .arg("--style-check")
-                .arg("--nodeps")
-                .stderr(File::create("zuu/stderr/style")?)
-                .stdout(File::create("zuu/stdout/style")?)
-                .current_dir(".")
-                .spawn()
-                .expect("dub")
-                .wait()
-                .expect("wait")
-                .success()
-            {
-                results.2 = true;
-                assert!(ok(
-                    &mut output,
-                    "The source style analysis no contains failures",
-                    3
-                )
-                .is_ok());
-            } else {
-                results.2 = false;
-                assert!(ko(
-                    &mut output,
-                    "The source style analysis contains failures",
-                    3
-                )
-                .is_ok());
-            }
-            assert!(execute!(&mut output, Print("\n\n")).is_ok());
-            if results.0 && results.1 && results.2 {
-                return Ok(());
-            }
-            return Err(Error::other("zuu detect error"));
-        }
-        Err(Error::new(std::io::ErrorKind::NotFound, "no package.json"))
-    }
-    fn all(&mut self) -> Result<(), Error> {
-        self.checked.insert(
-            Checked::License,
-            Command::new("make")
-                .arg(TARGET_LICENSE)
-                .current_dir(".")
-                .spawn()
-                .expect("license")
-                .wait()
-                .expect("wait")
-                .success(),
-        );
-        self.checked.insert(
-            Checked::Audit,
-            Command::new("make")
-                .arg(TARGET_AUDIT)
-                .current_dir(".")
-                .spawn()
-                .expect("audit")
-                .wait()
-                .expect("wait")
-                .success(),
-        );
-        self.checked.insert(
-            Checked::Lint,
-            Command::new("make")
-                .arg(TARGET_LINT)
-                .current_dir(".")
-                .spawn()
-                .expect("lint")
-                .wait()
-                .expect("wait")
-                .success(),
-        );
-        self.checked.insert(
-            Checked::Test,
-            Command::new("make")
-                .arg(TARGET_TEST)
-                .current_dir(".")
-                .spawn()
-                .expect("test")
-                .wait()
-                .expect("wait")
-                .success(),
-        );
-        self.checked.insert(
-            Checked::Fmt,
-            Command::new("make")
-                .arg(TARGET_FMT)
-                .current_dir(".")
-                .spawn()
-                .expect("fantomas")
-                .wait()
-                .expect("wait")
-                .success(),
-        );
-        check(&self.checked)
+        Err(Error::new(ErrorKind::NotFound, "no composer.json"))
     }
 
+    ///
+    /// # Run
+    ///
+    /// Create zuu directories and check source code
+    ///
+    /// # Panics
+    ///
+    /// On zuu directories creation structure
+    ///
     pub fn check(&mut self) -> ExitCode {
+        assert!(
+            create_zuu().is_ok(),
+            "Failed to create zuu directories structure"
+        );
         match self.language {
             Language::Rust => zuu_exit(&self.rust()),
-            Language::Php => zuu_exit(&self.php()),
-            Language::D => zuu_exit(&self.d()),
-            Language::Python => zuu_exit(&self.python()),
             Language::Nodejs | Language::TypeScript => zuu_exit(&self.js()),
-            Language::Unknown => ExitCode::FAILURE,
-            _ => zuu_exit(&self.all()),
+            _ => ExitCode::FAILURE,
         }
     }
 }
