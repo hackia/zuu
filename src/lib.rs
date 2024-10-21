@@ -1,4 +1,4 @@
-use crossterm::cursor::MoveTo;
+use crossterm::cursor::{Hide, MoveTo, Show};
 use crossterm::execute;
 use crossterm::style::{Color, Print, SetForegroundColor};
 use crossterm::terminal::{size, Clear, ClearType};
@@ -7,13 +7,22 @@ use std::fs::{create_dir_all, File};
 use std::io::{stdout, Error, Stdout};
 use std::path::Path;
 use std::process::{Command, ExitCode};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread;
+use std::thread::sleep;
+use std::time::Duration;
 
-pub const FORMAT_ERR: &str = "Source code is not formatted correctly. Please run the formatter.";
+pub const FORMAT_OK: &str = "Source code is formatted correctly";
+pub const FORMAT_ERR: &str = "Source code is not formatted correctly. Please run the formatter";
+pub const AUDIT_OK: &str = "No security vulnerabilities in the code";
 pub const AUDIT_ERR: &str = "Security vulnerabilities detected in the code";
-pub const TEST_ERR: &str = "Some tests did not pass. Please review the test results.";
-pub const LINT_ERR: &str = "Your code does not meet style requirements.";
-pub const LICENSE_ERR: &str = "Some dependencies may have incompatible licenses.";
-
+pub const TEST_OK: &str = "All tests pass";
+pub const TEST_ERR: &str = "Some tests did not pass. Please review the test results";
+pub const LINT_OK: &str = "Your code respect style requirements";
+pub const LINT_ERR: &str = "Your code does not meet style requirements";
+pub const LICENSE_ERR: &str = "Some dependencies may have incompatible licenses";
+pub const LICENSE_OK: &str = "No dependencies incompatible licenses";
 pub const TARGET_FMT: &str = "zuu-fmt";
 pub const TARGET_AUDIT: &str = "zuu-audit";
 pub const TARGET_TEST: &str = "zuu-test";
@@ -106,7 +115,7 @@ pub fn ok(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()>
 pub fn ko(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()> {
     let (cols, _rows) = size().expect("failed to get terminal size");
 
-    let status: &str = "[ ok ]";
+    let status: &str = "[ !! ]";
 
     let status_len: u16 = status.len() as u16;
     let status_position: u16 = cols.saturating_sub(status_len);
@@ -120,7 +129,6 @@ pub fn ko(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()>
         MoveTo(2, x),
         SetForegroundColor(Color::White),
         Print(description),
-        MoveTo(status_position, 1),
         SetForegroundColor(Color::Blue),
         MoveTo(status_position, x),
         Print("["),
@@ -130,6 +138,82 @@ pub fn ko(output: &mut Stdout, description: &str, x: u16) -> std::io::Result<()>
         Print("]"),
         SetForegroundColor(Color::Reset),
     )
+}
+
+pub fn exec(
+    output: &mut Stdout,
+    description: &'static str,
+    cmd: &mut Command,
+    f: &'static str,
+    x: u16,
+) -> std::io::Result<()> {
+    let spinner_done = Arc::new(AtomicBool::new(false));
+    let spinner_done_clone = Arc::clone(&spinner_done);
+    let (cols, _rows) = size().expect("failed to get terminal size");
+    let status: &str = "   ";
+    let status_len: u16 = status.len() as u16;
+    let status_position: u16 = cols.saturating_sub(status_len);
+    assert!(execute!(
+        output,
+        MoveTo(0, x),
+        SetForegroundColor(Color::Green),
+        Print("*"),
+        MoveTo(2, x),
+        SetForegroundColor(Color::White),
+        Print(description),
+        MoveTo(status_position, x),
+        SetForegroundColor(Color::Green),
+        Print(" "),
+        SetForegroundColor(Color::Reset),
+    )
+    .is_ok());
+    let spinner_thread = thread::spawn(move || {
+        let mut output = stdout();
+        while !spinner_done_clone.load(Ordering::SeqCst) {
+            let status: &str = "[ :: ]";
+            let status_len: u16 = status.len() as u16;
+            let spinner_chars = [". ", "..", ".:", "::"];
+            let status_position: u16 = cols.saturating_sub(status_len);
+            for spin in &spinner_chars {
+                assert!(execute!(
+                    output,
+                    Hide,
+                    SetForegroundColor(Color::Green),
+                    MoveTo(0, x),
+                    Print("*"),
+                    MoveTo(2, x),
+                    SetForegroundColor(Color::White),
+                    Print(description),
+                    MoveTo(status_position, x),
+                    SetForegroundColor(Color::Blue),
+                    Print("["),
+                    SetForegroundColor(Color::Green),
+                    Print(format!(" {spin} ")),
+                    SetForegroundColor(Color::Blue),
+                    Print("]"),
+                    SetForegroundColor(Color::Reset),
+                )
+                .is_ok());
+                sleep(Duration::from_millis(400));
+            }
+        }
+    });
+
+    let output = cmd
+        .stdout(File::create(format!("zuu/stdout/{f}")).expect("failed to create output"))
+        .stderr(File::create(format!("zuu/stderr/{f}")).expect("failed to create output"))
+        .spawn()?
+        .wait()?
+        .success();
+
+    spinner_done.store(true, Ordering::SeqCst);
+    spinner_thread.join().unwrap();
+    assert!(execute!(stdout(), MoveTo(0, 1), Clear(ClearType::CurrentLine)).is_ok());
+    assert!(execute!(stdout(), MoveTo(0, x), Clear(ClearType::CurrentLine)).is_ok());
+    if output {
+        return Ok(());
+    }
+    Err(Error::other("a error encountered"))
 }
 fn check(x: &HashMap<Checked, bool>) -> Result<(), Error> {
     let mut output: Stdout = stdout();
@@ -183,6 +267,7 @@ impl Zuu {
         create_dir_all("zuu").expect("msg");
         create_dir_all("zuu/stderr").expect("msg");
         create_dir_all("zuu/stdout").expect("msg");
+        execute!(&mut stdout(), Clear(ClearType::All)).expect("msg");
         Self {
             checked: HashMap::new(),
             language: lang,
@@ -191,111 +276,96 @@ impl Zuu {
 
     fn rust(&mut self) -> Result<(), Error> {
         if Path::new("Cargo.toml").is_file() {
-            let mut results: (bool, bool, bool, bool, bool) = (false, false, false, false, false);
+            let mut results: Vec<bool> = Vec::new();
             let mut output: Stdout = stdout();
             execute!(&mut output, Clear(ClearType::All)).expect("msg");
-            if Command::new("cargo")
-                .arg("deny")
-                .arg("check")
-                .stderr(File::create("zuu/stderr/license")?)
-                .stdout(File::create("zuu/stdout/license")?)
-                .current_dir(".")
-                .spawn()
-                .expect("cargo")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Checking licenses",
+                &mut Command::new("cargo").arg("deny").arg("check"),
+                "license",
+                2,
+            )
+            .is_ok()
             {
-                results.0 = true;
-                assert!(ok(&mut output, "No license problem founded", 1).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, LICENSE_OK, 2).is_ok());
             } else {
-                assert!(ko(&mut output, LICENSE_ERR, 1).is_ok());
-                results.0 = false;
+                assert!(ko(&mut output, LICENSE_ERR, 2).is_ok());
+                results.push(false);
             }
-            if Command::new("cargo")
-                .arg("audit")
-                .stderr(File::create("zuu/stderr/audit")?)
-                .stdout(File::create("zuu/stdout/audit")?)
-                .current_dir(".")
-                .spawn()
-                .expect("cargo")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Auditing code",
+                &mut Command::new("cargo").arg("audit"),
+                "audit",
+                3,
+            )
+            .is_ok()
             {
-                results.1 = true;
-                assert!(ok(&mut output, "No vulnerabilities founded", 2).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, AUDIT_OK, 3).is_ok());
             } else {
-                results.1 = false;
-                assert!(ko(&mut output, AUDIT_ERR, 2).is_ok());
+                results.push(false);
+                assert!(ko(&mut output, AUDIT_ERR, 3).is_ok());
             }
-            if Command::new("cargo")
-                .arg("clippy")
-                .stderr(File::create("zuu/stderr/lint")?)
-                .stdout(File::create("zuu/stdout/lint")?)
-                .current_dir(".")
-                .spawn()
-                .expect("cargo")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Checking code",
+                &mut Command::new("cargo").arg("clippy"),
+                "lint",
+                4,
+            )
+            .is_ok()
             {
-                results.2 = true;
-                assert!(ok(&mut output, "No lint errors founded", 3).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, LINT_OK, 4).is_ok());
             } else {
-                results.2 = false;
-                assert!(ko(&mut output, LINT_ERR, 3).is_ok());
+                results.push(false);
+                assert!(ko(&mut output, LINT_ERR, 4).is_ok());
             }
-
-            if Command::new("cargo")
-                .arg("test")
-                .arg("--no-fail-fast")
-                .stderr(File::create("zuu/stderr/tests")?)
-                .stdout(File::create("zuu/stdout/tests")?)
-                .current_dir(".")
-                .spawn()
-                .expect("cargo")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Running tests",
+                &mut Command::new("cargo").arg("test").arg("--no-fail-fast"),
+                "tests",
+                5,
+            )
+            .is_ok()
             {
-                results.3 = true;
-                assert!(ok(&mut output, "All tests passes", 4).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, TEST_OK, 5).is_ok());
             } else {
-                results.3 = false;
-                assert!(ko(&mut output, TEST_ERR, 4).is_ok());
+                results.push(false);
+                assert!(ko(&mut output, TEST_ERR, 5).is_ok());
             }
-            if Command::new("cargo")
-                .arg("fmt")
-                .arg("--check")
-                .arg("--all")
-                .stderr(File::create("zuu/stderr/fmt")?)
-                .stdout(File::create("zuu/stdout/fmt")?)
-                .current_dir(".")
-                .spawn()
-                .expect("cargo")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Checking code format",
+                &mut Command::new("cargo").arg("fmt").arg("--check"),
+                "fmt",
+                6,
+            )
+            .is_ok()
             {
-                results.4 = true;
-                assert!(ok(&mut output, "Source code format respect stantard", 5).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, FORMAT_OK, 6).is_ok());
             } else {
-                results.4 = false;
-                assert!(ko(&mut output, FORMAT_ERR, 5).is_ok());
+                results.push(false);
+                assert!(ko(&mut output, FORMAT_ERR, 6).is_ok());
             }
-            assert!(execute!(&mut output, Print("\n\n")).is_ok());
-            if results.0 && results.1 && results.2 && results.3 && results.4 {
-                return Ok(());
-            }
-            return Err(Error::other("zuu detect error"));
+            return self.end(&mut output, results);
         }
-        Err(Error::new(
-            std::io::ErrorKind::NotFound,
-            "Cargo.toml no founded",
-        ))
+        Err(Error::other("no cargo"))
     }
 
+    pub fn end(&mut self, output: &mut Stdout, results: Vec<bool>) -> Result<(), Error> {
+        assert!(execute!(output, Show, Print("\n\n")).is_ok());
+        if results.contains(&false) {
+            return Err(Error::other("zuu detect error"));
+        }
+        Ok(())
+    }
     fn php(&mut self) -> Result<(), Error> {
         if Path::new("composer.json").is_file() {
             let mut results: (bool, bool, bool, bool, bool, bool) =
@@ -569,6 +639,34 @@ impl Zuu {
         }
         Err(Error::new(std::io::ErrorKind::NotFound, "no package.json"))
     }
+    fn python(&mut self) -> Result<(), Error> {
+        if Path::new("setup.py").is_file() {
+            let mut results: (bool, bool, bool, bool, bool, bool, bool) =
+                (false, false, false, false, false, false, false);
+            let mut output: Stdout = stdout();
+            if exec(
+                &mut output,
+                "Auditing code",
+                &mut Command::new("bandit").arg("-r").arg("."),
+                "audit",
+                1,
+            )
+            .is_ok()
+            {
+                results.0 = true;
+                assert!(ok(&mut output, "No vulnerabilities founded", 2).is_ok());
+            } else {
+                assert!(ko(&mut output, "Audit detect vulnerabilities", 2).is_ok());
+                results.0 = false;
+            }
+            assert!(execute!(&mut output, Clear(ClearType::CurrentLine), Print("\n\n")).is_ok());
+            if results.0 {
+                return Ok(());
+            }
+            return Err(Error::other("zuu detect error"));
+        }
+        Err(Error::new(std::io::ErrorKind::NotFound, "no package.json"))
+    }
     fn d(&mut self) -> Result<(), Error> {
         if Path::new("dub.json").is_file() || Path::new("dub.sdl").is_file() {
             let mut results: (bool, bool, bool) = (false, false, false);
@@ -706,11 +804,13 @@ impl Zuu {
         );
         check(&self.checked)
     }
+
     pub fn check(&mut self) -> ExitCode {
         match self.language {
             Language::Rust => zuu_exit(&self.rust()),
             Language::Php => zuu_exit(&self.php()),
             Language::D => zuu_exit(&self.d()),
+            Language::Python => zuu_exit(&self.python()),
             Language::Nodejs | Language::TypeScript => zuu_exit(&self.js()),
             Language::Unknown => ExitCode::FAILURE,
             _ => zuu_exit(&self.all()),
