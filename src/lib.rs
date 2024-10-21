@@ -365,119 +365,99 @@ impl Zuu {
     }
     fn php(&mut self) -> Result<(), Error> {
         if Path::new("composer.json").is_file() {
-            let mut results: (bool, bool, bool, bool, bool, bool) =
-                (false, false, false, false, false, false);
             let mut output: Stdout = stdout();
-            execute!(&mut output, Clear(ClearType::All)).expect("msg");
-            if Command::new("composer")
-                .arg("validate")
-                .arg("--strict")
-                .stderr(File::create("zuu/stderr/validate")?)
-                .stdout(File::create("zuu/stdout/validate")?)
-                .current_dir(".")
-                .spawn()
-                .expect("composer")
-                .wait()
-                .expect("wait")
-                .success()
+            let mut results = Vec::<bool>::new();
+            if exec(
+                &mut output,
+                "Validating the project",
+                &mut Command::new("composer").arg("validate").arg("--strict"),
+                "validate",
+                1,
+            )
+            .is_ok()
             {
-                results.0 = true;
-                assert!(ok(&mut output, "No composer problem founded", 1).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, "The project is valid", 1).is_ok());
             } else {
-                assert!(ko(&mut output, "Composer validate detect problem", 1).is_ok());
-                results.0 = false;
+                assert!(ko(&mut output, "The project is not valid", 1).is_ok());
+                results.push(false);
             }
-            if Command::new("composer")
-                .arg("diagnose")
-                .stderr(File::create("zuu/stderr/diagnose")?)
-                .stdout(File::create("zuu/stdout/diagnose")?)
-                .current_dir(".")
-                .spawn()
-                .expect("cargo")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Checking the project",
+                &mut Command::new("composer").arg("diagnose"),
+                "diagnose",
+                2,
+            )
+            .is_ok()
             {
-                results.1 = true;
-                assert!(ok(&mut output, "Diagnose no detect problem", 2).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, "No problem founded", 2).is_ok());
             } else {
-                results.1 = false;
-                assert!(ko(&mut output, "Diagnose detect problem", 2).is_ok());
+                assert!(ko(&mut output, "Problems detected", 2).is_ok());
+                results.push(false);
             }
-            if Command::new("composer")
-                .arg("audit")
-                .stderr(File::create("zuu/stderr/audit")?)
-                .stdout(File::create("zuu/stdout/audit")?)
-                .current_dir(".")
-                .spawn()
-                .expect("cargo")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Auditing the project",
+                &mut Command::new("composer").arg("audit"),
+                "audit",
+                3,
+            )
+            .is_ok()
             {
-                results.2 = true;
-                assert!(ok(&mut output, "No audit errors founded", 3).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, "No security vulnerabilities founded", 3).is_ok());
             } else {
-                results.2 = false;
-                assert!(ko(&mut output, "Audit errors has been founded", 3).is_ok());
+                assert!(ko(&mut output, "Security vulnerabilities founded", 3).is_ok());
+                results.push(false);
             }
-
-            if Command::new("composer")
-                .arg("test")
-                .stderr(File::create("zuu/stderr/tests")?)
-                .stdout(File::create("zuu/stdout/tests")?)
-                .current_dir(".")
-                .spawn()
-                .expect("test")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Testing the project",
+                &mut Command::new("composer").arg("test"),
+                "tests",
+                4,
+            )
+            .is_ok()
             {
-                results.3 = true;
-                assert!(ok(&mut output, "All tests passes", 4).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, "All test passes", 4).is_ok());
             } else {
-                results.3 = false;
-                assert!(ko(&mut output, TEST_ERR, 4).is_ok());
+                assert!(ko(&mut output, "Test has failures", 4).is_ok());
+                results.push(false);
             }
-            if Command::new("composer")
-                .arg("fmt")
-                .stderr(File::create("zuu/stderr/fmt")?)
-                .stdout(File::create("zuu/stdout/fmt")?)
-                .current_dir(".")
-                .spawn()
-                .expect("composer")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Checking source code format",
+                &mut Command::new("composer").arg("fmt"),
+                "fmt",
+                5,
+            )
+            .is_ok()
             {
-                results.4 = true;
-                assert!(ok(&mut output, "Source code format respect stantard", 5).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, "Source code format respect standard", 5).is_ok());
             } else {
-                results.4 = false;
-                assert!(ko(&mut output, FORMAT_ERR, 5).is_ok());
+                assert!(ko(&mut output, "Source code must be reformated", 5).is_ok());
+                results.push(false);
             }
-            if Command::new("composer")
-                .arg("outdated")
-                .stderr(File::create("zuu/stderr/outdated")?)
-                .stdout(File::create("zuu/stdout/outdated")?)
-                .current_dir(".")
-                .spawn()
-                .expect("composer")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Checking source code format",
+                &mut Command::new("composer").arg("outdated"),
+                "outdated",
+                6,
+            )
+            .is_ok()
             {
-                results.5 = true;
+                results.push(true);
                 assert!(ok(&mut output, "Dependencies are up to date", 6).is_ok());
             } else {
-                results.5 = false;
                 assert!(ko(&mut output, "Dependencies must be updated", 6).is_ok());
+                results.push(false);
             }
-            assert!(execute!(&mut output, Print("\n\n")).is_ok());
-            if results.0 && results.1 && results.2 && results.3 && results.4 && results.5 {
-                return Ok(());
-            }
-            return Err(Error::other("zuu detect error"));
+            return self.end(&mut output, results);
         }
         Err(Error::new(std::io::ErrorKind::NotFound, "no composer.json"))
     }
