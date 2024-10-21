@@ -25,6 +25,6 @@ jobs:
       - name: deps
         run:  cargo install cargo-audit cargo-auditable cargo-deny cargo-outdated
       - name: installation
-        run:  cargo install zuu --no-default-features --features rust
+        run:  cargo install --path .
       - name: zuu
-        run:  git checkout "${GITHUB_REF##*/}" && zuu
+        run:  git checkout "${GITHUB_REF##*/}" && rust-audit
