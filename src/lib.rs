@@ -4,7 +4,7 @@ use crossterm::style::{Color, Print, SetForegroundColor};
 use crossterm::terminal::{size, Clear, ClearType};
 use std::collections::HashMap;
 use std::fs::{create_dir_all, File};
-use std::io::{stdout, Error, Stdout};
+use std::io::{stdout, Error, ErrorKind, Stdout};
 use std::path::Path;
 use std::process::{Command, ExitCode};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -353,7 +353,7 @@ impl Zuu {
             }
             return self.end(&mut output, results);
         }
-        Err(Error::other("no cargo"))
+       Err(Error::new(ErrorKind::NotFound,"no Cargo.toml"))
     }
 
     pub fn end(&mut self, output: &mut Stdout, results: Vec<bool>) -> Result<(), Error> {
@@ -459,162 +459,94 @@ impl Zuu {
             }
             return self.end(&mut output, results);
         }
-        Err(Error::new(std::io::ErrorKind::NotFound, "no composer.json"))
+        Err(Error::new(ErrorKind::NotFound, "no composer.json"))
     }
 
     fn js(&mut self) -> Result<(), Error> {
         if Path::new("package.json").is_file() {
-            let mut results: (bool, bool, bool, bool, bool, bool, bool) =
-                (false, false, false, false, false, false, false);
+            let mut results = Vec::<bool>::new();
             let mut output: Stdout = stdout();
             execute!(&mut output, Clear(ClearType::All)).expect("msg");
-            if Command::new("npm")
-                .arg("audit")
-                .stderr(File::create("zuu/stderr/audit")?)
-                .stdout(File::create("zuu/stdout/audit")?)
-                .current_dir(".")
-                .spawn()
-                .expect("npm")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Auditing source code",
+                &mut Command::new("npm").arg("audit"),
+                "audit",
+                1,
+            )
+                .is_ok()
             {
-                results.0 = true;
+                results.push(true);
                 assert!(ok(&mut output, "No vulnerabilities founded", 1).is_ok());
             } else {
-                assert!(ko(&mut output, "Audit detect vulnerabilities", 1).is_ok());
-                results.0 = false;
-            }
-            if Command::new("npm")
-                .arg("outdated")
-                .stderr(File::create("zuu/stderr/outdated")?)
-                .stdout(File::create("zuu/stdout/outdated")?)
-                .current_dir(".")
-                .spawn()
-                .expect("npm")
-                .wait()
-                .expect("wait")
-                .success()
-            {
-                results.1 = true;
-                assert!(ok(&mut output, "All dependencies are up to date", 2).is_ok());
-            } else {
-                results.1 = false;
-                assert!(ko(&mut output, "Dependencies must be updated", 2).is_ok());
-            }
-            if Command::new("npm")
-                .arg("run")
-                .arg("licenses")
-                .stderr(File::create("zuu/stderr/licenses")?)
-                .stdout(File::create("zuu/stdout/licenses")?)
-                .current_dir(".")
-                .spawn()
-                .expect("cargo")
-                .wait()
-                .expect("wait")
-                .success()
-            {
-                results.2 = true;
-                assert!(ok(&mut output, "No licenses errors founded", 3).is_ok());
-            } else {
-                results.2 = false;
-                assert!(ko(&mut output, "Licenses errors has been founded", 3).is_ok());
-            }
-            if Command::new("npm")
-                .arg("run")
-                .arg("lint")
-                .stderr(File::create("zuu/stderr/lint")?)
-                .stdout(File::create("zuu/stdout/lint")?)
-                .current_dir(".")
-                .spawn()
-                .expect("npm")
-                .wait()
-                .expect("wait")
-                .success()
-            {
-                results.3 = true;
-                assert!(ok(&mut output, "No lint errors founded", 4).is_ok());
-            } else {
-                results.3 = false;
-                assert!(ko(&mut output, "Lint errors has been founded", 4).is_ok());
+                assert!(ko(&mut output, "Security vulnerabilities detected", 1).is_ok());
+                results.push(false);
             }
 
-            if Command::new("npm")
-                .arg("test")
-                .stderr(File::create("zuu/stderr/tests")?)
-                .stdout(File::create("zuu/stdout/tests")?)
-                .current_dir(".")
-                .spawn()
-                .expect("test")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Checking dependencies",
+                &mut Command::new("npm").arg("outdated"),
+                "outdated",
+                2,
+            )
+                .is_ok()
             {
-                results.4 = true;
-                assert!(ok(&mut output, "All tests passes", 5).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, "All dependencies are up to date", 2).is_ok());
             } else {
-                results.4 = false;
-                assert!(ko(&mut output, TEST_ERR, 5).is_ok());
+                assert!(ko(&mut output, "Dependencies must be updated", 2).is_ok());
+                results.push(false);
             }
-            if Command::new("npm")
-                .arg("doctor")
-                .stderr(File::create("zuu/stderr/doctor")?)
-                .stdout(File::create("zuu/stdout/doctor")?)
-                .current_dir(".")
-                .spawn()
-                .expect("npm")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Checking licenses",
+                &mut Command::new("npm").arg("run").arg("licenses"),
+                "licences",
+                3,
+            )
+                .is_ok()
             {
-                results.5 = true;
-                assert!(ok(&mut output, "The health of your npm environment is ok", 6).is_ok());
+                results.push(true);
+                assert!(ok(&mut output, "All dependencies licenses are compatibles to the project", 3).is_ok());
             } else {
-                results.5 = false;
-                assert!(ko(&mut output, "The health of your npm environment is bad", 6).is_ok());
+                assert!(ko(&mut output, "Dependencies licences must be updated", 3).is_ok());
+                results.push(false);
             }
-            if Command::new("npm")
-                .arg("cache")
-                .arg("verify")
-                .stderr(File::create("zuu/stderr/cache")?)
-                .stdout(File::create("zuu/stdout/cache")?)
-                .current_dir(".")
-                .spawn()
-                .expect("npm")
-                .wait()
-                .expect("wait")
-                .success()
+            if exec(
+                &mut output,
+                "Testing source code",
+                &mut Command::new("npm").arg("test"),
+                "tests",
+                4,
+            )
+                .is_ok()
             {
-                results.6 = true;
-                assert!(ok(
-                    &mut output,
-                    "The cache integrity of the cache index and all cached data are ok",
-                    7
-                )
-                .is_ok());
+                results.push(true);
+                assert!(ok(&mut output, "All tests passes", 4).is_ok());
             } else {
-                results.6 = false;
-                assert!(ko(
-                    &mut output,
-                    "The cache integrity of the cache index and all cached data have problem",
-                    7
-                )
-                .is_ok());
+                assert!(ko(&mut output, "Test have failures", 4).is_ok());
+                results.push(false);
             }
-            assert!(execute!(&mut output, Print("\n\n")).is_ok());
-            if results.0
-                && results.1
-                && results.2
-                && results.3
-                && results.4
-                && results.5
-                && results.6
+
+            if exec(
+                &mut output,
+                "Testing source code format",
+                &mut Command::new("npm").arg("run").arg("fmt"),
+                "fmt",
+                5
+            )
+                .is_ok()
             {
-                return Ok(());
+                results.push(true);
+                assert!(ok(&mut output, "Source code respect standard", 5).is_ok());
+            } else {
+                assert!(ko(&mut output, "Source code must be reformated", 5).is_ok());
+                results.push(false);
             }
-            return Err(Error::other("zuu detect error"));
+            return self.end(&mut output, results);
         }
-        Err(Error::new(std::io::ErrorKind::NotFound, "no package.json"))
+        Err(Error::new(ErrorKind::NotFound, "no composer.json"))
     }
     fn python(&mut self) -> Result<(), Error> {
         if Path::new("setup.py").is_file() {
@@ -745,7 +677,6 @@ impl Zuu {
                 .expect("wait")
                 .success(),
         );
-
         self.checked.insert(
             Checked::Lint,
             Command::new("make")
