@@ -3,8 +3,7 @@ use crossterm::execute;
 use crossterm::style::{Color, Print, SetForegroundColor};
 use crossterm::terminal::{size, Clear, ClearType};
 use std::fs::{create_dir_all, File};
-use std::io::{stdout, Error, ErrorKind, Stdout};
-use std::path::Path;
+use std::io::{stdout, Error, Stdout};
 use std::process::{Command, ExitCode};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -13,19 +12,33 @@ use std::thread::sleep;
 use std::time::Duration;
 
 #[doc = "All checkup to execute for rust"]
-pub const ZUU_RUST_TASK : [&str;9]  =  [
-    "verify-project",
-    "deny check",
-    "check",
-    "audit",
-    "test",
-    "fmt --check",
-    "doc --no-deps",
-    "outdated",
-    "clippy -- -D clippy::cargo -D clippy::complexity -D clippy::style -D clippy::all -D clippy::perf -D clippy::correctness -D clippy::pedantic -D clippy::suspicious"
+pub const RUST_TASK : [&str;9]  =  [
+    "cargo verify-project",
+    "cargo deny check",
+    "cargo check",
+    "cargo audit",
+    "cargo test",
+    "cargo fmt --check",
+    "cargo doc --no-deps",
+    "cargo outdated",
+    "cargo clippy -- -D clippy::cargo -D clippy::complexity -D clippy::style -D clippy::all -D clippy::perf -D clippy::correctness -D clippy::pedantic -D clippy::suspicious"
 ];
+
+#[doc = "All checkup to execute for php"]
+pub const PHP_TASK: [&str; 9] = [
+    "composer validate",
+    "composer licenses",
+    "composer check-platform-reqs",
+    "composer audit",
+    "composer run-script test",
+    "composer run-script fmt",
+    "composer run-script doc",
+    "composer outdated",
+    "composer run-script lint",
+];
+
 #[doc = "All checkup success messages"]
-pub const ZUU_RUST_TASK_TITLES: [&str; 9] = [
+pub const ZUU_TITLES: [&str; 9] = [
     "Checking the project",
     "Checking project licenses",
     "Checking the build dependencies",
@@ -36,8 +49,9 @@ pub const ZUU_RUST_TASK_TITLES: [&str; 9] = [
     "Checking dependencies versions",
     "Checking source code",
 ];
+
 #[doc = "All checkup success messages"]
-pub const ZUU_RUST_TASK_OK: [&str; 9] = [
+pub const ZUU_OK: [&str; 9] = [
     "The project is valid",
     "No dependencies license problem",
     "No packages or dependencies errors",
@@ -48,8 +62,9 @@ pub const ZUU_RUST_TASK_OK: [&str; 9] = [
     "All dependencies are up to date",
     "Your code is validated",
 ];
+
 #[doc = "All checkup failures messages"]
-pub const ZUU_RUST_TASK_KO: [&str; 9] = [
+pub const ZUU_KO: [&str; 9] = [
     "The project is not valid",
     "Dependencies license problem has been founded",
     "Packages or dependencies errors has been founded",
@@ -62,7 +77,7 @@ pub const ZUU_RUST_TASK_KO: [&str; 9] = [
 ];
 
 #[doc = "All checkup failures messages"]
-pub const ZUU_RUST_TASK_OUTPUT_FILES: [&str; 9] = [
+pub const ZUU_OUTPUT_FILES: [&str; 9] = [
     "project",
     "licenses",
     "checks",
@@ -76,6 +91,7 @@ pub const ZUU_RUST_TASK_OUTPUT_FILES: [&str; 9] = [
 
 #[doc = "The waiting task spinner strings"]
 const SPINNERS: [&str; 4] = [". ", "..", ".:", "::"];
+
 #[doc = "All supported languages"]
 pub enum Language {
     Rust,
@@ -316,9 +332,11 @@ pub fn exec(
                 spinner_done.store(true, Ordering::SeqCst);
                 spinner_thread.join().unwrap();
                 assert!(execute!(stdout(), MoveTo(0, y), Clear(ClearType::CurrentLine)).is_ok());
-                if output {
-                    return Ok(());
-                }
+                return if output {
+                    Ok(())
+                } else {
+                    Err(Error::other("Zuu detect error"))
+                };
             }
         }
     }
@@ -364,35 +382,32 @@ impl Zuu {
     /// On check failures
     ///
     ///
-    pub fn rust(&mut self) -> Result<(), Error> {
-        if Path::new("Cargo.toml").is_file() {
-            let mut results: Vec<bool> = Vec::new();
-            let mut output: Stdout = stdout();
-            execute!(&mut output, Clear(ClearType::All)).expect("msg");
-            for (i, task) in ZUU_RUST_TASK.iter().enumerate() {
-                let title = ZUU_RUST_TASK_TITLES.get(i).unwrap_or(&"NO TITLE");
-                let success = ZUU_RUST_TASK_OK.get(i).unwrap_or(&"Success");
-                let failure = ZUU_RUST_TASK_KO.get(i).unwrap_or(&"Failure");
-                let file = ZUU_RUST_TASK_OUTPUT_FILES.get(i).unwrap_or(&"out");
-                if exec(
-                    &mut output,
-                    title,
-                    Command::new("cargo").args(task.split_whitespace()),
-                    file,
-                    i,
-                )
-                .is_ok()
-                {
-                    results.push(true);
-                    ok(&mut output, success, i);
-                } else {
-                    ko(&mut output, failure, i);
-                    results.push(false);
-                }
+    pub fn check(&mut self, tasks: &[&str; 9]) -> Result<(), Error> {
+        let mut results: Vec<bool> = Vec::new();
+        let mut output: Stdout = stdout();
+        execute!(&mut output, Clear(ClearType::All)).expect("msg");
+        for (i, task) in tasks.iter().enumerate() {
+            let title = ZUU_TITLES.get(i).unwrap_or(&"NO TITLE");
+            let success = ZUU_OK.get(i).unwrap_or(&"Success");
+            let failure = ZUU_KO.get(i).unwrap_or(&"Failure");
+            let file = ZUU_OUTPUT_FILES.get(i).unwrap_or(&"out");
+            if exec(
+                &mut output,
+                title,
+                Command::new("sh").args(["-c", task]).current_dir("."),
+                file,
+                i,
+            )
+            .is_ok()
+            {
+                results.push(true);
+                ok(&mut output, success, i);
+            } else {
+                ko(&mut output, failure, i);
+                results.push(false);
             }
-            return self.end(&mut output, &results);
         }
-        Err(Error::new(ErrorKind::NotFound, "no Cargo.toml"))
+        self.end(&mut output, &results)
     }
 
     ///
@@ -434,6 +449,7 @@ impl Zuu {
         .is_ok());
         Ok(())
     }
+
     ///
     /// # Run
     ///
@@ -443,13 +459,14 @@ impl Zuu {
     ///
     /// On zuu directories creation structure
     ///
-    pub fn check(&mut self) -> ExitCode {
+    pub fn run(&mut self) -> ExitCode {
         assert!(
             create_zuu().is_ok(),
             "Failed to create zuu directories structure"
         );
         match self.language {
-            Language::Rust => zuu_exit(&self.rust()),
+            Language::Rust => zuu_exit(&self.check(&RUST_TASK)),
+            Language::Php => zuu_exit(&self.check(&PHP_TASK)),
             _ => ExitCode::FAILURE,
         }
     }

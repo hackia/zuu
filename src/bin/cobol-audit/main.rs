@@ -2,5 +2,5 @@ use std::process::ExitCode;
 use zuu::{Language, Zuu};
 
 fn main() -> ExitCode {
-    Zuu::new(Language::Cobol).check()
+    Zuu::new(Language::Cobol).run()
 }

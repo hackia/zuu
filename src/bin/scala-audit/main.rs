@@ -2,5 +2,5 @@ use std::process::ExitCode;
 use zuu::{Language, Zuu};
 
 fn main() -> ExitCode {
-    Zuu::new(Language::Scala).check()
+    Zuu::new(Language::Scala).run()
 }
