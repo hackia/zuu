@@ -16,7 +16,10 @@ use zuu::{
     output::{exec, ko},
     runner::create_zuu,
     support::Language,
-    D_TASK, GO_TASK, PHP_TASK, PYTHON_TASK, RUST_TASK,
+    BASH_TASK, CPP_TASK, CRYSTAL_TASK, C_TASK, DART_TASK, D_TASK, ELIXIR_TASK, FISH_TASK,
+    FSHARP_TASK, GO_TASK, HASKELL_TASK, JAVA_TASK, KOTLIN_TASK, LUA_TASK, NIM_TASK, NODEJS_TASK,
+    OBJC_TASK, PERL_TASK, PHP_TASK, PYTHON_TASK, RUBY_TASK, RUST_TASK, R_TASK, SCALA_TASK,
+    SWIFT_TASK, ZSH_TASK,
 };
 
 #[doc = "command line options"]
@@ -163,8 +166,28 @@ fn source_code_verify(l: &Language, strict: bool, style: &str) -> Result<(), Err
         Language::Python => PYTHON_TASK,
         Language::Php => PHP_TASK,
         Language::Unknown => RUST_TASK,
-        Language::JavaScript => todo!(),
-        Language::TypeScript => todo!(),
+        Language::JavaScript => NODEJS_TASK,
+        Language::TypeScript => NODEJS_TASK,
+        Language::Java => JAVA_TASK,
+        Language::Kotlin => KOTLIN_TASK,
+        Language::Swift => SWIFT_TASK,
+        Language::Scala => SCALA_TASK,
+        Language::Ruby => RUBY_TASK,
+        Language::Perl => PERL_TASK,
+        Language::R => R_TASK,
+        Language::Haskell => HASKELL_TASK,
+        Language::Lua => LUA_TASK,
+        Language::ObjectiveC => OBJC_TASK,
+        Language::C => C_TASK,
+        Language::Cpp => CPP_TASK,
+        Language::Nim => NIM_TASK,
+        Language::Crystal => CRYSTAL_TASK,
+        Language::FSharp => FSHARP_TASK,
+        Language::Dart => DART_TASK,
+        Language::Elixir => ELIXIR_TASK,
+        Language::Bash => BASH_TASK,
+        Language::Zsh => ZSH_TASK,
+        Language::Fish => FISH_TASK,
     };
     for (index, command) in todo.iter().enumerate() {
         if contains_dangerous_chars(command.1) {

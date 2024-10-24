@@ -7,6 +7,26 @@ pub enum Language {
     D,
     Python,
     Php,
+    Java,
+    Kotlin,
+    Swift,
+    Scala,
+    Ruby,
+    Perl,
+    R,
+    Haskell,
+    Lua,
+    ObjectiveC,
+    C,
+    Cpp, // C++
+    Nim,
+    Crystal,
+    FSharp, // F#
+    Dart,
+    Elixir,
+    Bash,
+    Zsh,
+    Fish,
     Unknown,
 }
 
@@ -39,24 +59,29 @@ impl Support {
                 Language::D => data.push(String::from("D")),
                 Language::Python => data.push(String::from("Python")),
                 Language::Php => data.push(String::from("Php")),
-                _ => continue,
+                Language::Java => data.push(String::from("Java")),
+                Language::Kotlin => data.push(String::from("Kotlin")),
+                Language::Swift => data.push(String::from("Swift")),
+                Language::Scala => data.push(String::from("Scala")),
+                Language::Ruby => data.push(String::from("Ruby")),
+                Language::Perl => data.push(String::from("Perl")),
+                Language::R => data.push(String::from("R")),
+                Language::Haskell => data.push(String::from("Haskell")),
+                Language::Lua => data.push(String::from("Lua")),
+                Language::ObjectiveC => data.push(String::from("ObjectiveC")),
+                Language::C => data.push(String::from("C")),
+                Language::Cpp => data.push(String::from("Cpp")),
+                Language::Nim => data.push(String::from("Nim")),
+                Language::Crystal => data.push(String::from("Crystal")),
+                Language::FSharp => data.push(String::from("Fsharp")),
+                Language::Dart => data.push(String::from("Dart")),
+                Language::Elixir => data.push(String::from("Elixir")),
+                Language::Bash => data.push(String::from("Bash")),
+                Language::Zsh => data.push(String::from("Zsh")),
+                Language::Fish => data.push(String::from("Fish")),
+                Language::Unknown => continue,
             }
         }
         data
-    }
-}
-
-impl Language {
-    pub fn from_string(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
-            "rust" => Self::Rust,
-            "go" => Self::Go,
-            "d" => Self::D,
-            "js" => Self::JavaScript,
-            "typescript" => Self::TypeScript,
-            "python" => Self::Python,
-            "php" => Self::Php,
-            _ => Self::Unknown,
-        }
     }
 }
