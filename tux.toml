@@ -1,0 +1,16 @@
+
+languages = ["Rust"]
+notify = true
+strict = false
+
+[output]
+style = "openrc"
+
+[badges]
+generate = true
+output_dir = "badges"
+output_template = "{output_dir}/{language}/{task}.svg"
+
+[on]
+failure = { summary = "Task failed", body = "", urgency = "critical", expire = 5000 }
+success = { summary = "All tasks passed", body = "", urgency = "normal", expire = 5000 }

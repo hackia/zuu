@@ -11,106 +11,13 @@ description = "A program to check your code quality before all commit"
 keywords = ["lint", "quality", "prevention", "Maintainability", "optimization"]
 
 [[bin]]
-name = "bash-audit"
-
-[[bin]]
-name = "c-audit"
-
-[[bin]]
-name = "cpp-audit"
-
-[[bin]]
-name = "crystal-audit"
-
-[[bin]]
-name = "d-audit"
-
-[[bin]]
-name = "dart-audit"
-
-[[bin]]
-name = "elixir-audit"
-
-[[bin]]
-name = "erlang-audit"
-
-[[bin]]
-name = "fortran-audit"
-
-[[bin]]
-name = "fsharp-audit"
-
-[[bin]]
-name = "go-audit"
-
-[[bin]]
-name = "groovy-audit"
-
-[[bin]]
-name = "haskell-audit"
-
-[[bin]]
-name = "java-audit"
-
-[[bin]]
-name = "julia-audit"
-
-[[bin]]
-name = "kotlin-audit"
-
-[[bin]]
-name = "lua-audit"
-
-[[bin]]
-name = "ocaml-audit"
-
-[[bin]]
-name = "matlab-audit"
-
-[[bin]]
-name = "nim-audit"
-
-[[bin]]
-name = "nodejs-audit"
-
-[[bin]]
-name = "objective-c-audit"
-
-[[bin]]
-name = "perl-audit"
-
-[[bin]]
-name = "php-audit"
-
-[[bin]]
-name = "python-audit"
-
-[[bin]]
-name = "r-audit"
-
-[[bin]]
-name = "ruby-audit"
-
-[[bin]]
-name = "rust-audit"
-
-[[bin]]
-name = "scala-audit"
-
-[[bin]]
-name = "swift-audit"
-
-[[bin]]
-name = "tcl-audit"
-
-[[bin]]
-name = "typescript-audit"
-
-[[bin]]
-name = "vhdl-audit"
-
-[[bin]]
-name = "vlang-audit"
+name = "tux"
 
 [dependencies]
+clap = "4.5.20"
 crossterm = "0.28.1"
+indicatif = "0.17.8"
+inquire = { version = "0.7.5", features = ["console", "editor"] }
+notifme = "0.0.2"
+serde = { version = "1.0.213", features = ["derive"] }
+toml = "0.8.19"
