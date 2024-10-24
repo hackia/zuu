@@ -73,6 +73,25 @@ pub fn ok(output: &mut Stdout, style: &str, description: &str, x: usize) {
                             "Failed to print success message"
                         );
                     }
+                    "systemd" => {
+                        assert!(
+                            execute!(
+                                output,
+                                MoveTo(0, y),
+                                SetForegroundColor(Color::White),
+                                Print("["),
+                                SetForegroundColor(Color::Green),
+                                Print(" OK "),
+                                SetForegroundColor(Color::White),
+                                Print("]"),
+                                MoveTo(2, y),
+                                Print(description),
+                                SetForegroundColor(Color::Reset)
+                            )
+                            .is_ok(),
+                            "Failed to print success message"
+                        );
+                    }
                     _ => ok(output, "openrc", description, x),
                 }
             }
@@ -132,6 +151,25 @@ pub fn ko(output: &mut Stdout, style: &str, description: &str, x: usize) {
                             )
                             .is_ok(),
                             "Failed to print error message"
+                        );
+                    }
+                    "systemd" => {
+                        assert!(
+                            execute!(
+                                output,
+                                MoveTo(0, y),
+                                SetForegroundColor(Color::White),
+                                Print("["),
+                                SetForegroundColor(Color::Green),
+                                Print(" KO "),
+                                SetForegroundColor(Color::White),
+                                Print("]"),
+                                MoveTo(2, y),
+                                Print(description),
+                                SetForegroundColor(Color::Reset)
+                            )
+                            .is_ok(),
+                            "Failed to print success message"
                         );
                     }
                     _ => ko(output, "openrc", description, x),
