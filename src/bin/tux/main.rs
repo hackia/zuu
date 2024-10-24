@@ -12,7 +12,7 @@ use std::{
 };
 
 use zuu::{
-    ask::{init, Config, OUTPUT_FILES, ZUU_KO, ZUU_OK, ZUU_TITLES},
+    ask::{init, Config, OUTPUT_FILES},
     output::{exec, ko},
     runner::create_zuu,
     support::Language,
@@ -167,35 +167,32 @@ fn source_code_verify(l: &Language, strict: bool, style: &str) -> Result<(), Err
         Language::TypeScript => todo!(),
     };
     for (index, command) in todo.iter().enumerate() {
-        let title = ZUU_TITLES.get(index).unwrap_or(&"checking");
-        let filename = OUTPUT_FILES.get(index).unwrap_or(&"latest");
-        let success_message = ZUU_OK.get(index).unwrap_or(&"success");
-        let failure_message = ZUU_KO.get(index).unwrap_or(&"failure");
-        if contains_dangerous_chars(command) {
+        if contains_dangerous_chars(command.1) {
             ko(
                 &mut stdout(),
                 style,
                 format!(
-                    "Stopped bedore task {title}: {}/9. Dangerous command founded",
-                    index + 1
+                    "Stopped bedore task {}: {}/9. Dangerous command founded",
+                    command.0,
+                    index + 1,
                 )
                 .as_str(),
                 index,
             );
             break;
         }
-        let data = (
-            title.to_string(),
-            style.to_string(),
-            success_message.to_string(),
-            failure_message.to_string(),
-            filename.to_string(),
+        let data: (String, String, String, String, String) = (
+            command.0.to_string(),
+            command.1.to_string(),
+            command.2.to_string(),
+            command.3.to_string(),
+            OUTPUT_FILES.get(index).unwrap_or(&"default").to_string(),
         );
         results.push(
             exec(
                 &mut stdout(),
                 data,
-                Tux::new("sh").arg("-c").arg(command),
+                Tux::new("sh").arg("-c").arg(command.1),
                 index,
             )
             .is_ok(),
@@ -204,7 +201,7 @@ fn source_code_verify(l: &Language, strict: bool, style: &str) -> Result<(), Err
             ko(
                 &mut stdout(),
                 style,
-                format!("Stopped after task {title}: {}/9.", index + 1).as_str(),
+                format!("Stopped after task {}: {}/9.", command.0, index + 1).as_str(),
                 index,
             );
             assert!(execute!(stdout(), Show).is_ok());

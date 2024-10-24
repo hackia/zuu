@@ -2,6 +2,7 @@ pub mod ask;
 pub mod output;
 pub mod runner;
 pub mod support;
+
 #[doc = "All checkup tasks to execute for R with success and failure messages"]
 pub const R_TASK: [(&str, &str, &str, &str); 9] = [
     (
