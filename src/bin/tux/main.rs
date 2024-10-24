@@ -16,7 +16,7 @@ use zuu::{
     output::{exec, ko},
     runner::create_zuu,
     support::Language,
-    D_TASK, GO_TASK, JS_TASK, PHP_TASK, PYTHON_TASK, RUST_TASK,
+    D_TASK, GO_TASK, PHP_TASK, PYTHON_TASK, RUST_TASK,
 };
 
 #[doc = "command line options"]
@@ -70,7 +70,7 @@ pub fn main() -> ExitCode {
 }
 
 #[doc = "load user configuration"]
-fn load_config() -> Config {
+pub fn load_config() -> Config {
     if let Ok(config) = read_to_string("tux.toml") {
         if let Ok(tux) = toml::from_str::<Config>(&config) {
             return tux;
@@ -158,13 +158,13 @@ fn source_code_verify(l: &Language, strict: bool, style: &str) -> Result<(), Err
     let mut results: Vec<bool> = Vec::new();
     let todo = match l {
         Language::Rust => RUST_TASK,
-        Language::JavaScript => JS_TASK,
-        Language::TypeScript => JS_TASK,
         Language::Go => GO_TASK,
         Language::D => D_TASK,
         Language::Python => PYTHON_TASK,
         Language::Php => PHP_TASK,
         Language::Unknown => RUST_TASK,
+        Language::JavaScript => todo!(),
+        Language::TypeScript => todo!(),
     };
     for (index, command) in todo.iter().enumerate() {
         let title = ZUU_TITLES.get(index).unwrap_or(&"checking");

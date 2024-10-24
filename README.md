@@ -32,35 +32,13 @@ It allows you to run tests, check code formatting, perform security audits, and 
 ## Features
 
 - **Multi-language support**:
-  - Bash
-  - C
   - Clojure
   - Cobol
-  - Crystal
-  - Dart
-  - Elixir
   - Erlang
-  - FSharp
   - Fortran
-  - Go
   - Groovy
-  - Haskell
-  - Java
   - Julia
-  - Kotlin
-  - Lua
   - Matlab
-  - Nim
-  - Objective-C
-  - Perl
-  - PHP
-  - Python
-  - R
-  - Ruby
-  - Rust
-  - Scala
-  - Swift
-  - TypeScript
   - Vlang
 - Customizable testing options using environment variables for test control.
 - Isolation of development and test environments via Docker and Docker Compose.
@@ -311,3 +289,17 @@ Contributions are welcome! To contribute to the project, follow these steps:
 ## License
 
 This project is licensed under the AGPL-3.0 License. See the [LICENSE](https://raw.githubusercontent.com/otechdo/zuu/refs/heads/main/LICENSE) file for more details.
+
+
+```json
+{
+  "scripts": {
+    "check-structure": "echo 'Check project structure'",  // Vous pouvez personnaliser cette commande
+    "test": "jest",                                        // Ou "mocha" ou tout autre framework de test
+    "format:check": "prettier --check .",                  // Utilisation de Prettier pour le formatage
+    "generate-docs": "jsdoc -c jsdoc.conf.json",           // Génération de documentation avec JSDoc
+    "lint": "eslint .",                                    // Utilisation d'ESLint pour la vérification du style
+    "audit": "npm audit"                                   // Vérification des vulnérabilités
+  }
+}
+```
