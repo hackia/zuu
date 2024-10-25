@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(PartialEq)]
 pub enum Language {
     Rust,
@@ -30,6 +32,41 @@ pub enum Language {
     Unknown,
 }
 
+impl Display for Language {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Language::Rust => write!(f, "Rust"),
+            Language::JavaScript => write!(f, "JavaScript"),
+            Language::TypeScript => write!(f, "TypeScript"),
+            Language::Go => write!(f, "Go"),
+            Language::D => write!(f, "D"),
+            Language::Python => write!(f, "Python"),
+            Language::Php => write!(f, "Php"),
+            Language::Java => write!(f, "Java"),
+            Language::Kotlin => write!(f, "Kotlin"),
+            Language::Swift => write!(f, "Swift"),
+            Language::Scala => write!(f, "Scala"),
+            Language::Ruby => write!(f, "Ruby"),
+            Language::Perl => write!(f, "Perl"),
+            Language::R => write!(f, "R"),
+            Language::Haskell => write!(f, "Haskell"),
+            Language::Lua => write!(f, "Variant1"),
+            Language::ObjectiveC => write!(f, "ObjectiveC"),
+            Language::C => write!(f, "C"),
+            Language::Cpp => write!(f, "Cpp"),
+            Language::Nim => write!(f, "Nim"),
+            Language::Crystal => write!(f, "Crystal"),
+            Language::FSharp => write!(f, "FSharp"),
+            Language::Dart => write!(f, "Dart"),
+            Language::Elixir => write!(f, "Elixir"),
+            Language::Bash => write!(f, "Bash"),
+            Language::Zsh => write!(f, "Zsh"),
+            Language::Fish => write!(f, "Fish"),
+            Language::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Support {
     pub languages: Vec<Language>,
@@ -39,12 +76,32 @@ impl Support {
         Self {
             languages: vec![
                 Language::Rust,
-                Language::D,
-                Language::Go,
                 Language::JavaScript,
                 Language::TypeScript,
-                Language::Php,
+                Language::Go,
+                Language::D,
                 Language::Python,
+                Language::Php,
+                Language::Java,
+                Language::Kotlin,
+                Language::Swift,
+                Language::Scala,
+                Language::Ruby,
+                Language::Perl,
+                Language::R,
+                Language::Haskell,
+                Language::Lua,
+                Language::ObjectiveC,
+                Language::C,
+                Language::Cpp,
+                Language::Nim,
+                Language::Crystal,
+                Language::FSharp,
+                Language::Dart,
+                Language::Elixir,
+                Language::Bash,
+                Language::Zsh,
+                Language::Fish,
             ],
         }
     }
@@ -83,5 +140,8 @@ impl Support {
             }
         }
         data
+    }
+    pub fn supported(self) -> Vec<Language> {
+        self.languages
     }
 }

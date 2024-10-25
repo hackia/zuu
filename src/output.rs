@@ -6,8 +6,7 @@ use crossterm::{
     terminal::size,
 };
 use std::{
-    fs::File,
-    io::{stdout, Error, Stdout},
+    io::{stdout, Error},
     process::{Command, ExitCode},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -42,63 +41,39 @@ pub const fn zuu_exit(status: &Result<(), Error>) -> ExitCode {
 ///
 ///
 ///
-pub fn ok(output: &mut Stdout, style: &str, description: &str, x: usize) {
+pub fn ok(description: &str, x: usize) {
     if let Ok((cols, _rows)) = size() {
         if let Ok(y) = u16::try_from(x) {
             let status: &str = "[ ok ]";
             if let Ok(len) = u16::try_from(status.len()) {
-                match style {
-                    "openrc" => {
-                        let status_position: u16 = cols.saturating_sub(len);
-                        assert!(
-                            execute!(
-                                output,
-                                SetForegroundColor(Color::Green),
-                                MoveTo(0, y),
-                                Print("*"),
-                                MoveTo(2, y),
-                                SetForegroundColor(Color::White),
-                                Print(description),
-                                MoveTo(status_position, 1),
-                                SetForegroundColor(Color::Blue),
-                                MoveTo(status_position, y),
-                                Print("["),
-                                SetForegroundColor(Color::Green),
-                                Print(" ok "),
-                                SetForegroundColor(Color::Blue),
-                                Print("]"),
-                                SetForegroundColor(Color::Reset),
-                            )
-                            .is_ok(),
-                            "Failed to print success message"
-                        );
-                    }
-                    "systemd" => {
-                        assert!(
-                            execute!(
-                                output,
-                                MoveTo(0, y),
-                                SetForegroundColor(Color::White),
-                                Print("["),
-                                SetForegroundColor(Color::Green),
-                                Print(" OK "),
-                                SetForegroundColor(Color::White),
-                                Print("]"),
-                                MoveTo(2, y),
-                                Print(description),
-                                SetForegroundColor(Color::Reset)
-                            )
-                            .is_ok(),
-                            "Failed to print success message"
-                        );
-                    }
-                    _ => ok(output, "openrc", description, x),
-                }
+                let status_position: u16 = cols.saturating_sub(len);
+                assert!(
+                    execute!(
+                        stdout(),
+                        SetForegroundColor(Color::Green),
+                        MoveTo(0, y),
+                        Print("*"),
+                        MoveTo(2, y),
+                        SetForegroundColor(Color::White),
+                        Print(description),
+                        MoveTo(status_position, 1),
+                        SetForegroundColor(Color::Blue),
+                        MoveTo(status_position, y),
+                        Print("["),
+                        SetForegroundColor(Color::Green),
+                        Print(" ok "),
+                        SetForegroundColor(Color::Blue),
+                        Print("]"),
+                        SetForegroundColor(Color::Reset),
+                    )
+                    .is_ok(),
+                    "Failed to print success message"
+                );
             }
         } else {
             assert!(
                 execute!(
-                    output,
+                    stdout(),
                     SetForegroundColor(Color::Green),
                     MoveTo(0, 1),
                     Print("*"),
@@ -123,62 +98,38 @@ pub fn ok(output: &mut Stdout, style: &str, description: &str, x: usize) {
 ///
 /// On fail to print the description
 ///
-pub fn ko(output: &mut Stdout, style: &str, description: &str, x: usize) {
+pub fn ko(description: &str, x: usize) {
     if let Ok((cols, _row)) = size() {
         if let Ok(y) = u16::try_from(x) {
             let status: &str = "[ !! ]";
             if let Ok(len) = u16::try_from(status.len()) {
-                match style {
-                    "openrc" => {
-                        let status_position: u16 = cols.saturating_sub(len);
-                        assert!(
-                            execute!(
-                                output,
-                                SetForegroundColor(Color::Red),
-                                MoveTo(0, y),
-                                Print("*"),
-                                MoveTo(2, y),
-                                SetForegroundColor(Color::White),
-                                Print(description),
-                                SetForegroundColor(Color::Blue),
-                                MoveTo(status_position, y),
-                                Print("["),
-                                SetForegroundColor(Color::Red),
-                                Print(" !! "),
-                                SetForegroundColor(Color::Blue),
-                                Print("]"),
-                                SetForegroundColor(Color::Reset),
-                            )
-                            .is_ok(),
-                            "Failed to print error message"
-                        );
-                    }
-                    "systemd" => {
-                        assert!(
-                            execute!(
-                                output,
-                                MoveTo(0, y),
-                                SetForegroundColor(Color::White),
-                                Print("["),
-                                SetForegroundColor(Color::Green),
-                                Print(" KO "),
-                                SetForegroundColor(Color::White),
-                                Print("]"),
-                                MoveTo(2, y),
-                                Print(description),
-                                SetForegroundColor(Color::Reset)
-                            )
-                            .is_ok(),
-                            "Failed to print success message"
-                        );
-                    }
-                    _ => ko(output, "openrc", description, x),
-                }
+                let status_position: u16 = cols.saturating_sub(len);
+                assert!(
+                    execute!(
+                        stdout(),
+                        SetForegroundColor(Color::Red),
+                        MoveTo(0, y),
+                        Print("*"),
+                        MoveTo(2, y),
+                        SetForegroundColor(Color::White),
+                        Print(description),
+                        SetForegroundColor(Color::Blue),
+                        MoveTo(status_position, y),
+                        Print("["),
+                        SetForegroundColor(Color::Red),
+                        Print(" !! "),
+                        SetForegroundColor(Color::Blue),
+                        Print("]"),
+                        SetForegroundColor(Color::Reset),
+                    )
+                    .is_ok(),
+                    "Failed to print error message"
+                );
             }
         }
     } else {
         assert!(
-            execute!(output, Print(description)).is_ok(),
+            execute!(stdout(), Print(description)).is_ok(),
             "Failed to print error message"
         );
     }
@@ -197,14 +148,11 @@ pub fn ko(output: &mut Stdout, style: &str, description: &str, x: usize) {
 ///
 /// On check failure
 ///
-pub fn exec(
-    output: &mut Stdout,
+pub fn waiting(
     data: (
-        String, // title
-        String, // style
-        String, // success
-        String, // failure
-        String, // output filename
+        String, // title 0
+        String, // success 1
+        String, // failure 2
     ),
     cmd: &mut Command,
     x: usize,
@@ -218,7 +166,7 @@ pub fn exec(
             if let Ok(y) = u16::try_from(x) {
                 let status_position: u16 = cols.saturating_sub(len);
                 assert!(execute!(
-                    output,
+                    stdout(),
                     MoveTo(0, y),
                     SetForegroundColor(Color::Green),
                     Print("*"),
@@ -264,18 +212,7 @@ pub fn exec(
                     }
                 });
 
-                let command_output = cmd
-                    .stdout(
-                        File::create(format!("zuu/stdout/{}", data.4))
-                            .expect("failed to create output"),
-                    )
-                    .stderr(
-                        File::create(format!("zuu/stderr/{}", data.4))
-                            .expect("failed to create output"),
-                    )
-                    .spawn()?
-                    .wait()?
-                    .success();
+                let command_output = cmd.spawn()?.wait()?.success();
 
                 spinner_done.store(true, Ordering::SeqCst);
                 spinner_thread.join().unwrap();
@@ -285,10 +222,10 @@ pub fn exec(
                 );
 
                 return if command_output {
-                    ok(output, data.1.as_str(), data.2.as_str(), x);
+                    ok(data.1.as_str(), x);
                     Ok(())
                 } else {
-                    ko(output, data.1.as_str(), data.3.as_str(), x);
+                    ko(data.2.as_str(), x);
                     Err(Error::new(std::io::ErrorKind::Other, "Command failed"))
                 };
             }

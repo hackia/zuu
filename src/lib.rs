@@ -940,43 +940,43 @@ pub const RUST_TASK: [(&str, &str, &str, &str); 9] = [
     ),
     (
         "Checking for Rust build dependencies", // Description
-        "cargo check",                          // Command to check dependencies without building
+        "cargo audit",                          // Command to check dependencies without building
         "Build dependencies are valid",         // Success message
         "Invalid build dependencies",           // Failure message
     ),
     (
         "Scanning Rust project for security vulnerabilities", // Description
-        "cargo audit", // Command to audit dependencies for vulnerabilities
+        "cargo test", // Command to audit dependencies for vulnerabilities
         "No security vulnerabilities found", // Success message
         "Security vulnerabilities detected", // Failure message
     ),
     (
         "Running all Rust tests", // Description
-        "cargo test",             // Command to run unit tests
+        "cargo fmt --check",      // Command to run unit tests
         "All tests passed",       // Success message
         "Some tests failed",      // Failure message
     ),
     (
         "Validating Rust code formatting", // Description
-        "cargo fmt --check",               // Command to check code formatting
+        "cargo doc --no-deps",             // Command to check code formatting
         "Code is correctly formatted",     // Success message
         "Code formatting issues detected", // Failure message
     ),
     (
         "Generating Rust project documentation", // Description
-        "cargo doc --no-deps",                   // Command to generate project documentation
+        "cargo outdated",                        // Command to generate project documentation
         "Documentation generated successfully",  // Success message
         "Failed to generate documentation",      // Failure message
     ),
     (
-        "Checking for outdated Rust dependencies", // Description
-        "cargo outdated",                          // Command to check for outdated dependencies
-        "No outdated dependencies",                // Success message
-        "Outdated dependencies detected",          // Failure message
+        "Checking for outdated Rust dependencies",    // Description
+        "cargo clippy -- -D warnings -D clippy::all", // Command to check for outdated dependencies
+        "No outdated dependencies",                   // Success message
+        "Outdated dependencies detected",             // Failure message
     ),
     (
         "Linting the Rust source code", // Description
-        "cargo clippy -- -D warnings",  // Command to lint the Rust code
+        "cargo check",                  // Command to lint the Rust code
         "Code linting passed",          // Success message
         "Code linting issues detected", // Failure message
     ),

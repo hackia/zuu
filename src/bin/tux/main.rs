@@ -3,19 +3,20 @@ use clap::{ArgMatches, Command};
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     execute,
-    terminal::Clear,
+    style::Print,
+    terminal::{Clear, ClearType},
 };
 use std::{
-    fs::read_to_string,
+    fs::{create_dir_all, read_to_string, File},
     io::{stdout, Error},
     process::{Command as Tux, ExitCode},
 };
-
+use tabled::{settings::Style, Table};
 use zuu::{
-    ask::{init, Config, OUTPUT_FILES},
-    output::{exec, ko},
+    ask::{init, Config, Report, OUTPUT_FILES},
+    output::waiting,
     runner::create_zuu,
-    support::Language,
+    support::{Language, Support},
     BASH_TASK, CPP_TASK, CRYSTAL_TASK, C_TASK, DART_TASK, D_TASK, ELIXIR_TASK, FISH_TASK,
     FSHARP_TASK, GO_TASK, HASKELL_TASK, JAVA_TASK, KOTLIN_TASK, LUA_TASK, NIM_TASK, NODEJS_TASK,
     OBJC_TASK, PERL_TASK, PHP_TASK, PYTHON_TASK, RUBY_TASK, RUST_TASK, R_TASK, SCALA_TASK,
@@ -64,12 +65,25 @@ pub fn main() -> ExitCode {
     if app.subcommand_matches("init").is_some() {
         return init();
     }
-    assert!(execute!(stdout(), Show).is_ok());
-    if check_source_code().contains(&false) {
-        ExitCode::FAILURE
-    } else {
-        ExitCode::SUCCESS
+    let reports: Vec<Report> = check_source_code();
+    let table: String = Table::new(&reports)
+        .with(Style::modern_rounded())
+        .to_string();
+    assert!(execute!(
+        stdout(),
+        Clear(ClearType::All),
+        MoveTo(0, 0),
+        Print(table),
+        Print("\n"),
+        Show
+    )
+    .is_ok());
+    for report in &reports {
+        if report.code.eq(&1) {
+            return ExitCode::FAILURE;
+        }
     }
+    ExitCode::SUCCESS
 }
 
 #[doc = "load user configuration"]
@@ -85,6 +99,8 @@ pub fn load_config() -> Config {
 
 pub fn contains_dangerous_chars(command: &str) -> bool {
     let dangerous_chars = [
+        "/",  // Root directory expansion
+        "./", // Execution
         ";",  // Command separator
         "&",  // Background execution
         "|",  // Pipe to chain commands
@@ -111,54 +127,31 @@ pub fn contains_dangerous_chars(command: &str) -> bool {
     ];
     dangerous_chars.iter().any(|&c| command.contains(c))
 }
+
 ///
 /// # Panics
 ///
 /// On failed parse config or crossterm faillure
 ///
 #[must_use]
-pub fn check_source_code() -> Vec<bool> {
+pub fn check_source_code() -> Vec<Report> {
     let config: Config = load_config();
-    let mut data: Vec<bool> = Vec::new();
-    for x in &config.languages {
-        match x.to_lowercase().as_str() {
-            "rust" => {
-                data.push(
-                    source_code_verify(&Language::Rust, config.strict, &config.output.style)
-                        .is_ok(),
-                );
+    let mut reports: Vec<Report> = Vec::new();
+    let to_check: Vec<String> = config.languages;
+    for lang in &Support::new().supported() {
+        if to_check.contains(&lang.to_string()) {
+            if let Ok(report) = source_code_verify(lang, config.strict) {
+                reports.push(report);
             }
-            "js" => data.push(
-                source_code_verify(&Language::JavaScript, config.strict, &config.output.style)
-                    .is_ok(),
-            ),
-            "php" => {
-                data.push(
-                    source_code_verify(&Language::Php, config.strict, &config.output.style).is_ok(),
-                );
-            }
-            "python" => data.push(
-                source_code_verify(&Language::Python, config.strict, &config.output.style).is_ok(),
-            ),
-            "go" => {
-                data.push(
-                    source_code_verify(&Language::Go, config.strict, &config.output.style).is_ok(),
-                );
-            }
-            "d" => data.push(
-                source_code_verify(&Language::D, config.strict, &config.output.style).is_ok(),
-            ),
-            _ => data.push(
-                source_code_verify(&Language::Unknown, config.strict, &config.output.style)
-                    .is_err(),
-            ),
         }
     }
-    data
+    reports
 }
 
-fn source_code_verify(l: &Language, strict: bool, style: &str) -> Result<(), Error> {
+fn source_code_verify(l: &Language, strict: bool) -> Result<Report, Result<Report, Error>> {
+    assert!(execute!(stdout(), Clear(ClearType::All)).is_ok());
     let mut results: Vec<bool> = Vec::new();
+
     let todo = match l {
         Language::Rust => RUST_TASK,
         Language::Go => GO_TASK,
@@ -189,51 +182,118 @@ fn source_code_verify(l: &Language, strict: bool, style: &str) -> Result<(), Err
         Language::Zsh => ZSH_TASK,
         Language::Fish => FISH_TASK,
     };
+    assert!(create_dir_all(format!("zuu/{l}")).is_ok());
+    assert!(create_dir_all(format!("zuu/{l}/stderr")).is_ok());
+    assert!(create_dir_all(format!("zuu/{l}/stdout")).is_ok());
+    let mut waiting_line: usize = 0;
+    let mut ret: Report = Report::default();
+    ret.language = l.to_string();
     for (index, command) in todo.iter().enumerate() {
+        waiting_line = index;
         if contains_dangerous_chars(command.1) {
-            ko(
-                &mut stdout(),
-                style,
-                format!(
-                    "Stopped bedore task {}: {}/9. Dangerous command founded",
-                    command.0,
-                    index + 1,
-                )
-                .as_str(),
-                index,
-            );
-            break;
-        }
-        let data: (String, String, String, String, String) = (
-            command.0.to_string(),
-            command.1.to_string(),
-            command.2.to_string(),
-            command.3.to_string(),
-            OUTPUT_FILES.get(index).unwrap_or(&"default").to_string(),
-        );
-        results.push(
-            exec(
-                &mut stdout(),
-                data,
-                Tux::new("sh").arg("-c").arg(command.1),
-                index,
+            assert!(waiting(
+                (
+                    format!(
+                        "Stopped bedore task {}: {}/9. Dangerous command founded",
+                        command.0,
+                        index + 1,
+                    ),
+                    "Ok let's go".to_string(),
+                    "Oops".to_string()
+                ),
+                Tux::new("sleep").arg("10"),
+                waiting_line
             )
-            .is_ok(),
+            .is_ok());
+            assert!(execute!(stdout(), Clear(ClearType::All)).is_ok());
+            break;
+        }
+        let data: (String, String, String) = (
+            command.0.to_string(), // title
+            command.2.to_string(), // success
+            command.3.to_string(), // failure
         );
-        if strict && results.contains(&false) {
-            ko(
-                &mut stdout(),
-                style,
-                format!("Stopped after task {}: {}/9.", command.0, index + 1).as_str(),
-                index,
-            );
-            assert!(execute!(stdout(), Show).is_ok());
+        let reported: bool = waiting(
+            data,
+            Tux::new("sh")
+                .arg("-c")
+                .arg(command.1)
+                .stderr(
+                    File::create(
+                        format!(
+                            "zuu/{l}/stdout/{}",
+                            OUTPUT_FILES.get(index).unwrap_or(&"default")
+                        )
+                        .as_str(),
+                    )
+                    .expect(""),
+                )
+                .stdout(
+                    File::create(
+                        format!(
+                            "zuu/{l}/stdout/{}",
+                            OUTPUT_FILES.get(index).unwrap_or(&"default")
+                        )
+                        .as_str(),
+                    )
+                    .expect("msg"),
+                ),
+            index,
+        )
+        .is_ok();
+        results.push(reported);
+        ret.code = if reported { 1 } else { 0 };
+        match index {
+            0 => ret.validated = reported,
+            1 => ret.packages = reported,
+            2 => ret.audit = !reported,
+            3 => ret.test = reported,
+            4 => ret.standard = reported,
+            5 => ret.documented = reported,
+            6 => ret.outdated = !reported,
+            7 => ret.lint = reported,
+            8 => ret.secure = reported,
+            _ => {}
+        }
+        if strict && reported.eq(&false) {
+            assert!(waiting(
+                (
+                    format!("Stopped after task {}: {}/9.", command.0, index + 1),
+                    format!("Exiting the {l} test"),
+                    format!("Exiting the {l} test"),
+                ),
+                Tux::new("sleep").arg("10"),
+                waiting_line
+            )
+            .is_ok());
+            assert!(execute!(stdout(), Clear(ClearType::All), Show).is_ok());
             break;
         }
     }
-    assert!(execute!(stdout(), Show).is_ok());
     if results.contains(&false) {
-        return Err(Error::other("Err"));
+        assert!(waiting(
+            (
+                format!("Exit code failure for {l} test"),
+                format!("Exiting the {l} test"),
+                format!("Exiting the {l} test"),
+            ),
+            Tux::new("sleep").arg("10"),
+            waiting_line
+        )
+        .is_ok());
+        assert!(execute!(stdout(), Clear(ClearType::All)).is_ok());
+        return Ok(ret);
     }
-    Ok(())
+    assert!(waiting(
+        (
+            format!("Exit code success for {l} test"),
+            format!("Exiting the {l} test"),
+            format!("Exiting the {l} test"),
+        ),
+        Tux::new("sleep").arg("10"),
+        waiting_line
+    )
+    .is_ok());
+    assert!(execute!(stdout(), Clear(ClearType::All)).is_ok());
+    Ok(ret)
 }

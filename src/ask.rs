@@ -1,12 +1,15 @@
+use crate::output::{ko, ok};
 use crate::support::Support;
 use crossterm::cursor::Show;
 use crossterm::execute;
-use inquire::{Confirm, MultiSelect, Select};
+use crossterm::terminal::{Clear, ClearType};
+use inquire::{Confirm, MultiSelect};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::{stdout, Write};
 use std::path::Path;
 use std::process::ExitCode;
+use tabled::Tabled;
 
 #[doc = "All checkup success messages"]
 pub const ZUU_TITLES: [&str; 9] = [
@@ -61,41 +64,50 @@ pub const ZUU_KO: [&str; 9] = [
 ];
 
 #[derive(Serialize, Deserialize)]
-pub struct OutputConfig {
-    pub style: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct NotificationConfig {
-    pub summary: String,
-    pub body: String,
-    pub urgency: String,
-    pub expire: u32,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct OnConfig {
-    pub failure: NotificationConfig,
-    pub success: NotificationConfig,
-}
-
-#[derive(Deserialize, Serialize)]
-pub struct BadgeConfig {
-    pub generate: bool,
-    pub output_dir: String,
-    pub output_template: String,
-}
-
-#[derive(Serialize, Deserialize)]
 pub struct Config {
     pub languages: Vec<String>,
-    pub notify: bool,
     pub strict: bool,
-    pub output: OutputConfig,
-    pub badges: BadgeConfig,
-    pub on: OnConfig,
+}
+#[derive(Tabled)]
+pub struct Report {
+    pub language: String,
+    pub validated: bool,
+    pub licenses: bool,
+    pub packages: bool,
+    pub audit: bool,
+    pub test: bool,
+    pub secure: bool,
+    pub standard: bool,
+    pub documented: bool,
+    pub outdated: bool,
+    pub lint: bool,
+    pub code: i32,
 }
 
+impl Report {
+    pub fn new() -> Self {
+        Self {
+            language: String::new(),
+            validated: false,
+            licenses: false,
+            packages: false,
+            audit: false,
+            test: false,
+            secure: false,
+            standard: false,
+            documented: false,
+            outdated: false,
+            lint: false,
+            code: 1,
+        }
+    }
+}
+
+impl Default for Report {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 #[must_use]
 pub fn init() -> ExitCode {
     let tux = Path::new("tux.toml");
@@ -110,44 +122,20 @@ pub fn init() -> ExitCode {
     }
 
     let languages: Vec<String> = MultiSelect::new(
-        "Select the languages used in your project:",
+        "Select the languages used in your project :",
         Support::new().all(),
     )
     .prompt()
     .expect("Failed to get language selection");
-
-    let notify = Confirm::new("Do you want to enable notifications ?")
-        .with_default(true)
-        .prompt()
-        .unwrap_or_default();
-    let output_style = Select::new(
-        "Select the output style:",
-        vec!["openrc", "bar", "systemd", "default"],
-    )
-    .prompt()
-    .unwrap_or("openrc");
-    let generate_badges = Confirm::new("Do you want to generate badges ?")
-        .with_default(true)
+    let strict = Confirm::new("Do you want to stop the script on the first failure ?")
+        .with_default(false)
         .prompt()
         .unwrap_or_default();
 
     let config_content: String = format!(
         r#"
 languages = [{}]
-notify = {notify}
-strict = false
-
-[output]
-style = "{output_style}"
-
-[badges]
-generate = {generate_badges}
-output_dir = "badges"
-output_template = "{{output_dir}}/{{language}}/{{task}}.svg"
-
-[on]
-failure = {{ summary = "Task failed", body = "", urgency = "critical", expire = 5000 }}
-success = {{ summary = "All tasks passed", body = "", urgency = "normal", expire = 5000 }}
+strict = {strict}
 "#,
         languages
             .iter()
@@ -159,8 +147,10 @@ success = {{ summary = "All tasks passed", body = "", urgency = "normal", expire
     if let Ok(mut conf) = File::create(tux) {
         assert!(conf.write_all(config_content.as_bytes()).is_ok());
         assert!(conf.sync_all().is_ok());
-        println!("tux.toml has been generated successfully.");
+        assert!(execute!(stdout(), Clear(ClearType::All)).is_ok());
+        ok("The config has been generated successfully at tux.toml", 0);
         return ExitCode::SUCCESS;
     }
+    ko("Failed to generate config : ./tux.toml", 3);
     ExitCode::FAILURE
 }
