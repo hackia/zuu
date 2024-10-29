@@ -975,10 +975,10 @@ pub const RUST_TASK: [(&str, &str, &str, &str); 9] = [
         "Outdated dependencies detected",          // Failure message
     ),
     (
-        "Linting the Rust source code",               // Description
-        "cargo clippy -- -D warnings -D clippy::all -W clippy::pedantic  -W clippy::cargo -D missing_docs -D missing_docs_in_private_items", // Command to lint the Rust code
-        "Code linting passed",                        // Success message
-        "Code linting issues detected",               // Failure message
+        "Linting the Rust source code", // Description
+        "cargo clippy -- -D warnings -D clippy::all -W clippy::pedantic  -W clippy::cargo", // Command to lint the Rust code
+        "Code linting passed",          // Success message
+        "Code linting issues detected", // Failure message
     ),
 ];
 

@@ -70,7 +70,6 @@ pub struct Config {
     pub strict: bool,
 }
 
-#[doc = "The pro"]
 pub const PROJECT_STRUCTURE_VALID: &str = "VALID";
 pub const PROJECT_STRUCTURE_NOT_VALID: &str = "NOT VALID";
 
