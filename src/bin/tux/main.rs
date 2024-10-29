@@ -10,6 +10,8 @@ use std::{
     fs::{create_dir_all, read_to_string, File},
     io::stdout,
     process::{Command as Tux, ExitCode},
+    thread::sleep,
+    time::Duration,
 };
 use zuu::{
     ask::{
@@ -49,6 +51,7 @@ by using the strict mode. Tux also helps you set up source tracking by creating 
                 .about("Exit on the first failure during validation")
                 .subcommand_required(false),
         )
+        .subcommand(Command::new("watch").about("enable watch mode"))
         .subcommand(
             Command::new("init")
                 .about("Initialize the source tracking by creating a tux.toml configuration file")
@@ -57,6 +60,24 @@ by using the strict mode. Tux also helps you set up source tracking by creating 
         .get_matches()
 }
 
+pub fn zuu() -> (Vec<Report>, i32) {
+    let reports: Vec<Report> = check_source_code();
+
+    assert!(execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0), Show).is_ok());
+    assert!(print_stdout(reports.with_title()).is_ok());
+    for report in &reports {
+        if report.code.eq(&1) {
+            return (reports, FAILURE);
+        }
+    }
+    (reports, SUCCESS)
+}
+
+fn report(reports: Vec<Report>) {
+    assert!(execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0), Show).is_ok());
+    assert!(print_stdout(reports.with_title()).is_ok());
+    assert!(execute!(stdout(), Show).is_ok());
+}
 #[must_use]
 pub fn main() -> ExitCode {
     assert!(execute!(
@@ -68,19 +89,23 @@ pub fn main() -> ExitCode {
     .is_ok());
     assert!(create_zuu().is_ok());
     let app: ArgMatches = tux();
-    if app.subcommand_matches("init").is_some() {
+    if app.subcommand_matches("init").is_some() && app.subcommand_matches("watch").is_none() {
         return init();
     }
-    let reports: Vec<Report> = check_source_code();
 
-    assert!(execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0), Show).is_ok());
-    assert!(print_stdout(reports.with_title()).is_ok());
-    for report in &reports {
-        if report.code.eq(&1) {
-            return ExitCode::FAILURE;
+    if app.subcommand_matches("watch").is_some() {
+        loop {
+            report(zuu().0);
+            sleep(Duration::from_secs(60));
         }
     }
-    ExitCode::SUCCESS
+    let r = zuu();
+    report(r.0);
+    if r.1.eq(&FAILURE) {
+        ExitCode::FAILURE
+    } else {
+        ExitCode::SUCCESS
+    }
 }
 
 #[doc = "load user configuration"]
