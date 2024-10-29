@@ -53,7 +53,6 @@ pull: check-tools $(addprefix pull-, $(LANGUAGES))
 pull-%:
 	@echo -e "$(COLOR_GREEN)    Pulling$(COLOR_RESET) $(COLOR_BOLD)$(USERNAME)/$(REPO):$*$(COLOR_RESET) from Docker Hub..."
 	@docker pull $(USERNAME)/$(REPO):$*
-	@spinner
 	@echo -e "\r$(COLOR_GREEN)    Finished pulling$(COLOR_RESET) $(COLOR_BOLD)$(USERNAME)/$(REPO):$*$(COLOR_RESET)"
 
 .DEFAULT_GOAL := push

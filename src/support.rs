@@ -72,6 +72,7 @@ pub struct Support {
     pub languages: Vec<Language>,
 }
 impl Support {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             languages: vec![
@@ -105,9 +106,12 @@ impl Support {
             ],
         }
     }
+
+    #[must_use]
+    #[doc = "Get all supported languages"]
     pub fn all(self) -> Vec<String> {
         let mut data: Vec<String> = Vec::new();
-        for language in self.languages {
+        for language in &self.languages {
             match language {
                 Language::Rust => data.push(String::from("Rust")),
                 Language::JavaScript => data.push(String::from("Javascript")),
@@ -141,6 +145,8 @@ impl Support {
         }
         data
     }
+    #[must_use]
+    #[doc = "Get all supported language"]
     pub fn supported(self) -> Vec<Language> {
         self.languages
     }

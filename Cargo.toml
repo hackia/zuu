@@ -15,10 +15,10 @@ name = "tux"
 
 [dependencies]
 clap = "4.5.20"
+cli-table = "0.4.9"
 crossterm = "0.28.1"
 indicatif = "0.17.8"
 inquire = { version = "0.7.5", features = ["console", "editor"] }
 notifme = "0.0.2"
-serde = { version = "1.0.213", features = ["derive"] }
-tabled = "0.16.0"
+serde = { version = "1.0.214", features = ["derive"] }
 toml = "0.8.19"

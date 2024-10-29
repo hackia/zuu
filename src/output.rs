@@ -174,7 +174,7 @@ pub fn waiting(
                     SetForegroundColor(Color::White),
                     Print(data.0.to_string()),
                     MoveTo(status_position, y),
-                    SetForegroundColor(Color::Green),
+                    SetForegroundColor(Color::White),
                     Print(" "),
                     SetForegroundColor(Color::Reset),
                 )

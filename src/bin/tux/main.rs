@@ -1,19 +1,25 @@
 #![allow(clippy::multiple_crate_versions)]
 use clap::{ArgMatches, Command};
+use cli_table::{print_stdout, WithTitle};
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     execute,
-    style::Print,
     terminal::{Clear, ClearType},
 };
 use std::{
     fs::{create_dir_all, read_to_string, File},
-    io::{stdout, Error},
+    io::stdout,
     process::{Command as Tux, ExitCode},
 };
-use tabled::{settings::Style, Table};
 use zuu::{
-    ask::{init, Config, Report, OUTPUT_FILES},
+    ask::{
+        init, Config, Report, AUDIT_NOT_VALID, AUDIT_VALID, BUILD_DEPENDENCIES_NOT_VALID,
+        BUILD_DEPENDENCIES_VALID, CODE_NOT_VALID, CODE_VALID, DOCUMENTED_NOT_VALID,
+        DOCUMENTED_VALID, FAILURE, OUTDATED_NOT_VALID, OUTDATED_VALID, OUTPUT_FILES,
+        PROJECT_LICENSE_NOT_VALID, PROJECT_LICENSE_VALID, PROJECT_STRUCTURE_NOT_VALID,
+        PROJECT_STRUCTURE_VALID, RESPECT_OF_STANDARD_NOT_VALID, RESPECT_OF_STANDARD_VALID, SUCCESS,
+        TESTS_RESULTS_NOT_VALID, TESTS_RESULT_VALID,
+    },
     output::waiting,
     runner::create_zuu,
     support::{Language, Support},
@@ -66,18 +72,9 @@ pub fn main() -> ExitCode {
         return init();
     }
     let reports: Vec<Report> = check_source_code();
-    let table: String = Table::new(&reports)
-        .with(Style::modern_rounded())
-        .to_string();
-    assert!(execute!(
-        stdout(),
-        Clear(ClearType::All),
-        MoveTo(0, 0),
-        Print(table),
-        Print("\n"),
-        Show
-    )
-    .is_ok());
+
+    assert!(execute!(stdout(), Clear(ClearType::All), MoveTo(0, 0), Show).is_ok());
+    assert!(print_stdout(reports.with_title()).is_ok());
     for report in &reports {
         if report.code.eq(&1) {
             return ExitCode::FAILURE;
@@ -148,7 +145,7 @@ pub fn check_source_code() -> Vec<Report> {
     reports
 }
 
-fn source_code_verify(l: &Language, strict: bool) -> Result<Report, Result<Report, Error>> {
+fn source_code_verify(l: &Language, strict: bool) -> std::io::Result<Report> {
     assert!(execute!(stdout(), Clear(ClearType::All)).is_ok());
     let mut results: Vec<bool> = Vec::new();
 
@@ -186,7 +183,7 @@ fn source_code_verify(l: &Language, strict: bool) -> Result<Report, Result<Repor
     assert!(create_dir_all(format!("zuu/{l}/stderr")).is_ok());
     assert!(create_dir_all(format!("zuu/{l}/stdout")).is_ok());
     let mut waiting_line: usize = 0;
-    let mut ret: Report = Report::default();
+    let mut ret: Report = Report::new();
     ret.language = l.to_string();
     for (index, command) in todo.iter().enumerate() {
         waiting_line = index;
@@ -213,7 +210,7 @@ fn source_code_verify(l: &Language, strict: bool) -> Result<Report, Result<Repor
             command.2.to_string(), // success
             command.3.to_string(), // failure
         );
-        let reported: bool = waiting(
+        let report_error: bool = waiting(
             data,
             Tux::new("sh")
                 .arg("-c")
@@ -221,7 +218,7 @@ fn source_code_verify(l: &Language, strict: bool) -> Result<Report, Result<Repor
                 .stderr(
                     File::create(
                         format!(
-                            "zuu/{l}/stdout/{}",
+                            "zuu/{l}/stderr/{}",
                             OUTPUT_FILES.get(index).unwrap_or(&"default")
                         )
                         .as_str(),
@@ -240,25 +237,79 @@ fn source_code_verify(l: &Language, strict: bool) -> Result<Report, Result<Repor
                 ),
             index,
         )
-        .is_ok();
-        results.push(reported);
-        ret.code = if reported { 1 } else { 0 };
+        .is_err();
+        results.push(report_error);
         match index {
-            0 => ret.validated = reported,
-            1 => ret.packages = reported,
-            2 => ret.audit = !reported,
-            3 => ret.test = reported,
-            4 => ret.standard = reported,
-            5 => ret.documented = reported,
-            6 => ret.outdated = !reported,
-            7 => ret.lint = reported,
-            8 => ret.secure = reported,
+            0 => {
+                ret.project_structure = if report_error {
+                    PROJECT_STRUCTURE_NOT_VALID.to_uppercase()
+                } else {
+                    PROJECT_STRUCTURE_VALID.to_uppercase()
+                }
+            }
+            1 => {
+                ret.licenses = if report_error {
+                    PROJECT_LICENSE_NOT_VALID.to_uppercase()
+                } else {
+                    PROJECT_LICENSE_VALID.to_uppercase()
+                }
+            }
+            2 => {
+                ret.dependencies = if report_error {
+                    BUILD_DEPENDENCIES_NOT_VALID.to_uppercase()
+                } else {
+                    BUILD_DEPENDENCIES_VALID.to_uppercase()
+                }
+            }
+            3 => {
+                ret.audit = if report_error {
+                    AUDIT_NOT_VALID.to_uppercase()
+                } else {
+                    AUDIT_VALID.to_uppercase()
+                }
+            }
+            4 => {
+                ret.test = if report_error {
+                    TESTS_RESULTS_NOT_VALID.to_uppercase()
+                } else {
+                    TESTS_RESULT_VALID.to_uppercase()
+                }
+            }
+            5 => {
+                ret.standard = if report_error {
+                    RESPECT_OF_STANDARD_NOT_VALID.to_uppercase()
+                } else {
+                    RESPECT_OF_STANDARD_VALID.to_uppercase()
+                }
+            }
+            6 => {
+                ret.documented = if report_error {
+                    DOCUMENTED_NOT_VALID.to_uppercase()
+                } else {
+                    DOCUMENTED_VALID.to_uppercase()
+                }
+            }
+            7 => {
+                ret.outdated = if report_error {
+                    OUTDATED_NOT_VALID.to_uppercase()
+                } else {
+                    OUTDATED_VALID.to_uppercase()
+                }
+            }
+            8 => {
+                ret.lint = if report_error {
+                    CODE_NOT_VALID.to_uppercase()
+                } else {
+                    CODE_VALID.to_uppercase()
+                }
+            }
             _ => {}
         }
-        if strict && reported.eq(&false) {
+        if strict && report_error.eq(&true) {
+            ret.code = FAILURE;
             assert!(waiting(
                 (
-                    format!("Stopped after task {}: {}/9.", command.0, index + 1),
+                    format!("Exiting {} (strict mode): {}/9.", command.0, index + 1),
                     format!("Exiting the {l} test"),
                     format!("Exiting the {l} test"),
                 ),
@@ -266,11 +317,12 @@ fn source_code_verify(l: &Language, strict: bool) -> Result<Report, Result<Repor
                 waiting_line
             )
             .is_ok());
-            assert!(execute!(stdout(), Clear(ClearType::All), Show).is_ok());
+            assert!(execute!(stdout(), Clear(ClearType::All), Hide).is_ok());
             break;
         }
     }
-    if results.contains(&false) {
+    if results.contains(&true) {
+        ret.code = FAILURE;
         assert!(waiting(
             (
                 format!("Exit code failure for {l} test"),
@@ -278,22 +330,24 @@ fn source_code_verify(l: &Language, strict: bool) -> Result<Report, Result<Repor
                 format!("Exiting the {l} test"),
             ),
             Tux::new("sleep").arg("10"),
-            waiting_line
+            waiting_line + 1
         )
         .is_ok());
         assert!(execute!(stdout(), Clear(ClearType::All)).is_ok());
-        return Ok(ret);
+        Ok(ret)
+    } else {
+        ret.code = SUCCESS;
+        assert!(waiting(
+            (
+                format!("Exit code success for {l} test"),
+                format!("Exiting the {l} test"),
+                format!("Exiting the {l} test"),
+            ),
+            Tux::new("sleep").arg("10"),
+            waiting_line + 1
+        )
+        .is_ok());
+        assert!(execute!(stdout(), Clear(ClearType::All)).is_ok());
+        Ok(ret)
     }
-    assert!(waiting(
-        (
-            format!("Exit code success for {l} test"),
-            format!("Exiting the {l} test"),
-            format!("Exiting the {l} test"),
-        ),
-        Tux::new("sleep").arg("10"),
-        waiting_line
-    )
-    .is_ok());
-    assert!(execute!(stdout(), Clear(ClearType::All)).is_ok());
-    Ok(ret)
 }

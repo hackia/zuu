@@ -940,45 +940,45 @@ pub const RUST_TASK: [(&str, &str, &str, &str); 9] = [
     ),
     (
         "Checking for Rust build dependencies", // Description
-        "cargo audit",                          // Command to check dependencies without building
+        "cargo check",                          // Command to check dependencies without building
         "Build dependencies are valid",         // Success message
         "Invalid build dependencies",           // Failure message
     ),
     (
         "Scanning Rust project for security vulnerabilities", // Description
-        "cargo test", // Command to audit dependencies for vulnerabilities
+        "cargo audit", // Command to audit dependencies for vulnerabilities
         "No security vulnerabilities found", // Success message
         "Security vulnerabilities detected", // Failure message
     ),
     (
         "Running all Rust tests", // Description
-        "cargo fmt --check",      // Command to run unit tests
+        "cargo test",             // Command to run unit tests
         "All tests passed",       // Success message
         "Some tests failed",      // Failure message
     ),
     (
         "Validating Rust code formatting", // Description
-        "cargo doc --no-deps",             // Command to check code formatting
+        "cargo fmt --check",               // Command to check code formatting
         "Code is correctly formatted",     // Success message
         "Code formatting issues detected", // Failure message
     ),
     (
         "Generating Rust project documentation", // Description
-        "cargo outdated",                        // Command to generate project documentation
+        "cargo doc --no-deps",                   // Command to generate project documentation
         "Documentation generated successfully",  // Success message
         "Failed to generate documentation",      // Failure message
     ),
     (
-        "Checking for outdated Rust dependencies",    // Description
-        "cargo clippy -- -D warnings -D clippy::all", // Command to check for outdated dependencies
-        "No outdated dependencies",                   // Success message
-        "Outdated dependencies detected",             // Failure message
+        "Checking for outdated Rust dependencies", // Description
+        "cargo outdated",                          // Command to check for outdated dependencies
+        "No outdated dependencies",                // Success message
+        "Outdated dependencies detected",          // Failure message
     ),
     (
-        "Linting the Rust source code", // Description
-        "cargo check",                  // Command to lint the Rust code
-        "Code linting passed",          // Success message
-        "Code linting issues detected", // Failure message
+        "Linting the Rust source code",               // Description
+        "cargo clippy -- -D warnings -D clippy::all -W clippy::pedantic  -W clippy::cargo -D missing_docs -D missing_docs_in_private_items", // Command to lint the Rust code
+        "Code linting passed",                        // Success message
+        "Code linting issues detected",               // Failure message
     ),
 ];
 
@@ -1416,7 +1416,7 @@ pub const GO_TASK: [(&str, &str, &str, &str); 9] = [
     ),
     (
         "Running all Go tests", // Description
-        "go test ./...",        // Command to run Go tests
+        "go test -v",           // Command to run Go tests
         "All tests passed",     // Success message
         "Some tests failed",    // Failure message
     ),
@@ -1428,7 +1428,7 @@ pub const GO_TASK: [(&str, &str, &str, &str); 9] = [
     ),
     (
         "Generating Go project documentation",  // Description
-        "go doc ./...",                         // Command to generate documentation for Go project
+        "go doc",                               // Command to generate documentation for Go project
         "Documentation generated successfully", // Success message
         "Failed to generate documentation",     // Failure message
     ),
@@ -1455,10 +1455,10 @@ pub const PYTHON_TASK: [(&str, &str, &str, &str); 9] = [
         "Invalid project structure or dependency issues found", // Failure message
     ),
     (
-        "Checking Python project dependencies",       // Description
-        "pip freeze > requirements.txt && pip check", // Command to check and freeze dependencies
-        "Dependencies are correctly installed",       // Success message
-        "Dependency issues detected",                 // Failure message
+        "Checking Python project dependencies", // Description
+        "pip check",                            // Command to check and freeze dependencies
+        "Dependencies are correctly installed", // Success message
+        "Dependency issues detected",           // Failure message
     ),
     (
         "Checking for Python security vulnerabilities", // Description
