@@ -1,12 +1,12 @@
 [package]
 name = "zuu"
-version = "24.0.0-alpha.1"
+version = "24.0.0"
 edition = "2021"
 license = "AGPL-3.0"
 categories = ["development-tools", "development-tools::testing"]
 readme = "README.md"
 authors = ["Willy Micieli"]
-repository = "https://github.com/otechdo/zuu"
+repository = "https://github.com/hackia/zuu"
 description = "A program to check your code quality before all commit"
 keywords = ["lint", "quality", "prevention", "Maintainability", "optimization"]
 
